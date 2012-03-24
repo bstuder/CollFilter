@@ -35,6 +35,7 @@ object Test {
     case _ => false
   }
   
+  // Parsing the arguments of the run
   def parseArgs(arg: Array[String]):(Int,Int,Float) = arg.toList match {
       case Nil => (1,NF,LAMBDA)
       case n :: Nil => n match {
@@ -50,9 +51,11 @@ object Test {
       case _ => println(usage) ; sys.exit(0)
     }
   
+  // simple matcher
   def isInt: String => Boolean = _.matches("\\d+")
   def isFloat: String => Boolean = _.matches("\\d+\\.\\d+")
   
+  /* a simple test to check the correcteness of LU decomposition*/
   def testLU = {
 	 val r1:List[Float] = List(2,-1,1)
 	 val r2:List[Float] = List(0,3,-2)
@@ -60,6 +63,6 @@ object Test {
 	 val mat = new Matrix(r1::r2::r3::Nil)
 	 val LU = mat.fastLU
 	 println(LU._1 * LU._2)
-	 println(LU._1 * LU._2 - mat)
+	 println(LU._1 * LU._2 - mat) // this should be ~= null matrix
   }
 }

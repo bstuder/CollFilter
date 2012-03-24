@@ -2,20 +2,22 @@ import scala.collection.mutable.HashMap
 import scala.collection.Map
 import scala.util.Random
 
+/* 
+ * Read the stream of information (userId,movieId,rating)
+ * and popuilate 2 sparse Matrix (as Map of Map) 
+ */
 class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
   import Constants._
   
   val usrToMov = new HashMap[Int, HashMap[Int, Float]]
   val movToUsr = new HashMap[Int, HashMap[Int, Float]]
   
-  def nbrRatings: Int = src.length
+  val nbrRatings: Int = src.length
 
   //format is : (UserID, MovieID, Rating)
   def init {
     def addInnerKey(map: HashMap[Int, HashMap[Int, Float]],
-      oKey: Int,
-      iKey: Int,
-      value: Float) = {
+      oKey: Int, iKey: Int, value: Float) = {
       map.get(oKey) match {
         case Some(imap) => imap += ((iKey, value))
         case None => {
@@ -29,11 +31,10 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
 
     println("[Dsi/init] Building Users/Movies Map")
     var cnt = 0
-    val length = src.length
     for ((uid, mid, rat) <- src) {
       cnt += 1
       if(cnt % incr == 0) {
-        print("\r" + (cnt*100/length) +"%")
+        print("\r" + (cnt*100/nbrRatings) +"%")
       }
       addInnerKey(usrToMov, uid, mid, rat)
       addInnerKey(movToUsr, mid, uid, rat)
@@ -43,7 +44,7 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
     println("[Dsi/init] Building complete (" + 
       usrToMov.size + " users, " + 
       movToUsr.size + " movies, " + 
-      length + " ratings)")
+      nbrRatings + " ratings)")
   }
 
   def setUpM(Nf: Int): Map[Int, List[Float]] = {

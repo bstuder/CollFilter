@@ -1,4 +1,8 @@
 
+/*
+ * A Matrix representation mainly used to perform
+ * matrix multiplication and LU factorisation
+ */
 class Matrix(els: List[List[Float]]) {
   val elements: List[List[Float]] = els
   def nRows: Int = elements.length
@@ -10,7 +14,6 @@ class Matrix(els: List[List[Float]]) {
   //Check for well formed matrix
   require(elements.forall(_.length == nCols))
 
-  /* Add to each elem of matrix */
   private def addRows(a: List[Float],
     b: List[Float]): List[Float] =(a, b).zipped map (_ + _)
 
@@ -40,7 +43,7 @@ class Matrix(els: List[List[Float]]) {
       })
   }
   
-  // do : this * this.transpose
+  // a sligth improvement for the case : this * this.transpose
   def dotTranspose: Matrix = {
     new Matrix(
       for (row <- elements) yield {
@@ -59,6 +62,9 @@ class Matrix(els: List[List[Float]]) {
       s2
   }
   
+  /* A faster version of the LU decompostion algorithm.
+   * May not be safe for side cases
+   */
   def fastLU: (Matrix, Matrix) = {
     require(nCols == nRows)
     
@@ -196,7 +202,7 @@ class Matrix(els: List[List[Float]]) {
     new Matrix(List(x).transpose)
   }
   
-    // Solve the case this * x = other IF this is up diagonal
+  // Solve the case this * x = other IF this is up diagonal
   private def diagUpSolve(other: Matrix): Matrix = {
     require(other.nRows == nCols && other.nCols == 1)
     for(i <- (0 to nRows-1)) {
@@ -224,8 +230,10 @@ class Matrix(els: List[List[Float]]) {
 
 object Matrix {
 	
+  // the identity matrix
 	def identity(size: Int): Matrix = weightIdentity(size)(1)
 	
+  // the weighted identity matrix (the diagonal contains the coef value)
 	def weightIdentity(size: Int)(coef: Float): Matrix = {
 		new Matrix(List.range(0,size) map (x => List.fill(size)(0f) updated(x,coef)))
 	}

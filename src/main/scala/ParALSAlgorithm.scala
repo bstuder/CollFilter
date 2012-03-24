@@ -4,6 +4,9 @@ import scala.collection.Set
 import scala.math._
 import Constants._
 
+/*
+ * The parallel implementation of ALS algorithm using parallel Hash map
+ */
 class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   def this(dataSetInit: DataSetInitializer) = this(dataSetInit,NF,LAMBDA)
   def this(dataSetInit: DataSetInitializer, Nf: Int) = this(dataSetInit,Nf,LAMBDA)

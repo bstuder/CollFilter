@@ -3,6 +3,9 @@ import scala.collection.Set
 import scala.math._
 import Constants._
 
+/*
+ * The original serial ALS algorithm
+ */
 class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
   
   def this(dsi: DataSetInitializer) = this(dsi,NF,LAMBDA)
