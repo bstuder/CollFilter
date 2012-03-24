@@ -7,9 +7,14 @@ object Test {
   
   val curr = path100k
     
-  val usage = "The arguments are : steps Nf lambda \n" +
-    "Default values are steps: 1, Nf: "+NF+", lambda: "+LAMBDA+"\n" +
-    "Usage: [steps [Nf] [lambda]]\n\n"
+  val usage = "\nThe arguments are : parallelisation, number of steps," + 
+    "number of hidden factors, lambda regulation values \n" +
+    "Default values are parallelisation off, steps=1, Nf="+NF+", lambda="+LAMBDA+"\n" +
+    "Usage: [par] [steps [Nf] [lambda]]\n" + 
+    "examples : \n\trun par 3 10 0.2 --> parallel, 3 steps, 10 hidden factors, lambda=0.2\n" +
+    "\trun 10 50 --> serial, 10 steps, 50 hidden factors, lambda="+LAMBDA+"(default)\n" + 
+    "\trun par 5 100 --> parallel, 5 steps, 100 hidden factors, lambda="+LAMBDA+"(default)\n" + 
+    "\trun 10 0.1--> serial, 10 steps, "+NF+" hidden factor(default), lambda=0.1\n "
   
   def main(arg: Array[String]) {
     if(checkPar(arg))

@@ -1,0 +1,12 @@
+* Building with sbt
+ Get scala 2.10.0-M2 :
+$ sbt update 
+ patch the 'compiler interface' bug using "patch.sh"
+ and finally
+$ sbt compile
+
+* Running with sbt
+ As an example : 
+$ sbt 'run par 1 20 0.02'
+ examples/argument's syntax : 
+$ sbt 'run help'
