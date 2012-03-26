@@ -2,16 +2,16 @@ import scala.collection.mutable.HashMap
 import scala.collection.Map
 import scala.util.Random
 
-/* 
+/*
  * Read the stream of information (userId,movieId,rating)
- * and popuilate 2 sparse Matrix (as Map of Map) 
+ * and popuilate 2 sparse Matrix (as Map of Map)
  */
 class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
   import Constants._
-  
+
   val usrToMov = new HashMap[Int, HashMap[Int, Float]]
   val movToUsr = new HashMap[Int, HashMap[Int, Float]]
-  
+
   val nbrRatings: Int = src.length
 
   //format is : (UserID, MovieID, Rating)
@@ -41,9 +41,9 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
     }
     println("\r100%")
 
-    println("[Dsi/init] Building complete (" + 
-      usrToMov.size + " users, " + 
-      movToUsr.size + " movies, " + 
+    println("[Dsi/init] Building complete (" +
+      usrToMov.size + " users, " +
+      movToUsr.size + " movies, " +
       nbrRatings + " ratings)")
   }
 
