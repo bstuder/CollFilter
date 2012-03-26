@@ -54,7 +54,6 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
 
     println("[Dsi/SetUp] Setting up the Movie Matrix")
     val fRow = movToUsr mapValues (x => x.foldLeft(0f)((sum, a) => sum + a._2) / x.size)
-    // println("First row (average) : " + fRow)
     // Average on the first row, small random value on the other
     val M = fRow mapValues(x => x :: randList)
     M

@@ -5,7 +5,7 @@ object Test {
   val path1m = "src/main/resources/ratings1M.dat"
   val path10m = "src/main/resources/ratings10M.dat"
 
-  val curr = path100k
+  val curr = path1m
 
   val usage = "\nThe arguments are : parallelisation, number of steps," +
     "number of hidden factors, lambda regulation values \n" +

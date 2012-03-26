@@ -45,11 +45,13 @@ class Matrix(els: List[List[Float]]) {
 
   // a sligth improvement for the case : this * this.transpose
   def dotTranspose: Matrix = {
-    new Matrix(
+    val test = 
       for (row <- elements) yield {
         for (col <- elements)
           yield Matrix.dotVectors(row, col)
-      })
+      }
+      
+      new Matrix(test.toList map (row => row.toList))
   }
 
   // Solve the case : this * x = other with LU decompositon of this

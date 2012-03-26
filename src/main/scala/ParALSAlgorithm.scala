@@ -1,5 +1,6 @@
 import scala.collection.parallel.mutable.ParHashMap
 import scala.collection.mutable.HashMap
+import scala.collection.immutable.TreeSet
 import scala.collection.Set
 import scala.math._
 import Constants._
@@ -74,7 +75,7 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       }
       val ratedSet: Set[Int] = dsi.usrToMov(i).keySet
       val t1 = tick
-      val mRatings: List[List[Float]] = m.filterKeys(k => ratedSet.contains(k)).toList.sortWith(_._1 < _._1).map(_._2)
+      val mRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (m(_))
       val t2 = tick
       val matMi = new Matrix(mRatings.transpose)
       val t3 = tick
@@ -101,7 +102,7 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       }
       val ratedSet: Set[Int] = dsi.movToUsr(j).keySet
       val t1 = tick
-      val uRatings: List[List[Float]] = u.filterKeys(k => ratedSet.contains(k)).toList.sortWith(_._1 < _._1).map(_._2)
+      val uRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (u(_))
       val t2 = tick
       val matUi = new Matrix(uRatings.transpose)
       val t3 = tick
