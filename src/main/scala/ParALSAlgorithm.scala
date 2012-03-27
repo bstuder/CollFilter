@@ -79,11 +79,11 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t2 = tick
       val matMi = new Matrix(mRatings.transpose)
       val t3 = tick
-      val Ai = matMi.dotTranspose + Matrix.weightIdentity(Nf)(mRatings.size * lambda)
+      val Ai = matMi.dotTranspose(mRatings.size * lambda)
       val t4 = tick
-      val Rij = new Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(tup => tup._2) :: Nil)
+      val Rij = new Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
       val t5 = tick
-      val Vi = matMi * Rij.transpose
+      val Vi = matMi * Rij
       val t6 = tick
       val ui = Ai.LUsolve(Vi)
       val t7 = tick
@@ -106,11 +106,11 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t2 = tick
       val matUi = new Matrix(uRatings.transpose)
       val t3 = tick
-      val Aj = matUi.dotTranspose + Matrix.weightIdentity(Nf)(uRatings.size * lambda)
+      val Aj = matUi.dotTranspose(uRatings.size * lambda)
       val t4 = tick
-      val Rij = new Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(tup => tup._2) :: Nil)
+      val Rij = new Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
       val t5 = tick
-      val Vj = matUi * Rij.transpose
+      val Vj = matUi * Rij
       val t6 = tick
       val mj = Aj.LUsolve(Vj)
       val t7 = tick
