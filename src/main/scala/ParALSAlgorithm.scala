@@ -89,7 +89,7 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t7 = tick
       val loctimes = (t2-t1) :: (t3-t2) :: (t4-t3) :: (t5-t4) :: (t6-t5) :: (t7-t6) :: Nil
       timer = (timer zip loctimes) map (x => x._1 + x._2)
-      ui.transpose.elements(0)
+      ui.elements.flatten
     }
     println("[ALS] Solving U")
     u foreach (tup => u update (tup._1, solveUsr(tup._1)))
@@ -116,7 +116,7 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t7 = tick
       val loctimes = (t2-t1) :: (t3-t2) :: (t4-t3) :: (t5-t4) :: (t6-t5) :: (t7-t6) :: Nil
       timer = (timer zip loctimes) map (x => x._1 + x._2)
-      mj.transpose.elements(0)
+      mj.elements.flatten
     }
     println("[ALS] Solving M")
     m foreach (tup => m update (tup._1, solveMov(tup._1)))

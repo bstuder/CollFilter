@@ -43,9 +43,9 @@ class Matrix(els: List[List[Float]]) {
       })
   }
 
-  // optimisation for the case : this * this.transpose
+  // optimisation for the case : this * this.transpose + weigthedIdentity(coef)
   def dotTranspose(coef: Float): Matrix = {
-    val indexedElem = IndexedSeq.concat(elements)
+    val indexedElem = Vector.concat(elements)
     
     def mapIdx(i: Int,j: Int): Float = {
       if(i > j) Matrix.dotVectors(indexedElem(i), indexedElem(j)) 
@@ -60,96 +60,72 @@ class Matrix(els: List[List[Float]]) {
   // Solve the case : this * x = other with LU decompositon of this
   def LUsolve(other: Matrix): Matrix = {
     require(other.nRows == nCols && other.nCols == 1)
-    //val lu = this.LUdecomp
-    val lu = this.fastLU
-    val s1 = lu._1.diagDownSolve(other)
-    val s2 = lu._2.diagUpSolve(s1)
+    val lu = this.fastLU // lu._1 * lu._2 = this
+    val s1 = diagSolve(lu._1, other, false) //lu._1 * s1 = other
+    val s2 = diagSolve(lu._2, s1, true) // lu._2 * s2 = s1
     s2
   }
 
   /* A faster version of the Doolittle LU decompostion
    * May not be safe for side cases
    */
-  def fastLU: (Matrix, Matrix) = {
+  def fastLU: (Vector[Vector[Float]], Vector[Vector[Float]]) = {
     require(nCols == nRows)
 
-    var L:IndexedSeq[IndexedSeq[Float]] = IndexedSeq.fill(nRows)(IndexedSeq.fill(nRows)(0f))
-    var U:IndexedSeq[IndexedSeq[Float]] = IndexedSeq.fill(nRows)(IndexedSeq.fill(nRows)(0f))
+    var L:Vector[Vector[Float]] = Vector.fill(nRows)(Vector.fill(nRows)(0f))
+    var U:Vector[Vector[Float]] = Vector.fill(nRows)(Vector.fill(nRows)(0f))
 
     def parSum(i: Int, j: Int, n: Int): Float = {
       var sum = 0f
-      if(n == 0) {
-        return 0f
+      
+      if(n > 0) {
+        for(m <- (0 to n-1))
+          sum += L(i)(m) * U(m)(j)
       }
-      for(m <- (0 to n-1)) {
-        sum += L(i)(m) * U(m)(j)
-      }
+      
       sum
     }
 
-    def slvL2(i: Int)(j: Int): Float =
-      (elements(i)(j) - parSum(i,j,j)) / U(j)(j)
-
-    def slvU2(i: Int)(j: Int): Float =
-      elements(i)(j) - parSum(i,j,i)
-
     def slvL(i: Int)(j: Int): Float =
-      if(i < j) 0 else if(i == j) 1 else slvL2(i)(j)
+      if(i < j) 0 
+      else if(i == j) 1 
+      else (elements(i)(j) - parSum(i,j,j)) / U(j)(j)
 
     def slvU(i: Int)(j: Int): Float =
-      if(i > j) 0 else slvU2(i)(j)
+      if(i > j) 0 
+      else elements(i)(j) - parSum(i,j,i)
 
-    def stepSolve = {
-      for(i <- (0 to nRows-1)){
-        for(j <- (0 to nRows-1)){
-          L = L.updated(i, L(i).updated(j, slvL(i)(j)))
-          U = U.updated(i, U(i).updated(j, slvU(i)(j)))
-        }
+    for(i <- (0 to nRows-1)){
+      for(j <- (0 to nRows-1)){
+        L = L.updated(i, L(i).updated(j, slvL(i)(j)))
+        U = U.updated(i, U(i).updated(j, slvU(i)(j)))
       }
     }
 
-    stepSolve
-
-    def finalize(iseq: IndexedSeq[IndexedSeq[Float]]): List[List[Float]] = {
-      iseq.toList map (_.toList)
-    }
-
-    (new Matrix(finalize(L)), new Matrix(finalize(U)))
+    (L, U)
   }
-
-  // Solve the case this * x = other IF this is down diagonal
-  private def diagDownSolve(other: Matrix): Matrix = {
+  
+  // Solve the case this * x = other IF this is diagonal
+  private def diagSolve(vect: Vector[Vector[Float]], other: Matrix, diagUp: Boolean): Matrix = {
     require(other.nRows == nCols && other.nCols == 1)
-    for(i <- (0 to nRows-1)) {
-        require(elements(i).drop(i+1).forall(_ == 0)) //if the last drop => Nil bug then do a match : case l => l.forall ..... case Nil => true
-    }
-    var x : List[Float] = List.fill(nRows)(0f)
+    
+    var x : Vector[Float] = Vector.fill(nRows)(0f)
 
     def getX(i: Int) = {
-      (other.elements(i)(0) - elements(i).zip(x).map(v => v._1 * v._2).reduce(_+_)) / elements(i)(i)
+      (other.elements(i)(0) - Matrix.dotVectors(vect(i), x)) / vect(i)(i)
     }
-    for(i <- (0 to nRows-1)) {
-      x = x.updated(i, getX(i))
+    
+    if(diagUp) {
+      for(i <- (0 to nRows-1)) {
+        x = x.updated(nRows-1-i, getX(nRows-1-i))
+      }
+    } else {
+       for(i <- (0 to nRows-1)) {
+        x = x.updated(i, getX(i))
+      }     
     }
-    new Matrix(List(x).transpose)
-  }
-
-  // Solve the case this * x = other IF this is up diagonal
-  private def diagUpSolve(other: Matrix): Matrix = {
-    require(other.nRows == nCols && other.nCols == 1)
-    for(i <- (0 to nRows-1)) {
-        require(elements(i).take(i-1).forall(_ == 0)) //if the last drop => Nil bug then do a match : case l => l.forall ..... case Nil => true
-    }
-    var x : List[Float] = List.fill(nRows)(0f)
-
-    def getX(i: Int) = {
-      (other.elements(i)(0) - elements(i).zip(x).map(v => v._1 * v._2).reduce(_+_)) / elements(i)(i)
-    }
-
-    for(i <- (0 to nRows-1)) {
-      x = x.updated(nRows-1-i, getX(nRows-1-i))
-    }
-    new Matrix(List(x).transpose)
+    
+    new Matrix(x.toList map (_ :: Nil))
   }
 
   override def toString: String = {
@@ -173,4 +149,9 @@ object Matrix {
   def dotVectors(a: List[Float], b: List[Float]): Float = {
     (a, b).zipped map(_ * _) reduce (_ + _)
   }
+  
+  def dotVectors(a: Vector[Float], b: Vector[Float]): Float = {
+    (a, b).zipped map(_ * _) reduce (_ + _)
+  }
+  
 }

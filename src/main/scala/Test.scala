@@ -61,7 +61,7 @@ object Test {
   def isFloat: String => Boolean = _.matches("\\d+\\.\\d+")
 
   /* a simple test to check the correcteness of LU decomposition*/
-  def testLU = {
+  /*def testLU = {
    val r1:List[Float] = List(2,-1,1)
    val r2:List[Float] = List(0,3,-2)
    val r3:List[Float] = List(1,4,-1)
@@ -69,5 +69,5 @@ object Test {
    val LU = mat.fastLU
    println(LU._1 * LU._2)
    println(LU._1 * LU._2 - mat) // this should be ~= null matrix
-  }
+  }*/
 }
