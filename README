@@ -1,4 +1,10 @@
+* Get the 2.10.0-Mx
+$ sbt update
+
 * Building with sbt
+  Use the patch.sh to solve the compiler-interface error
+$ ./patch
+  And then compile
 $ sbt compile
 
 * Running with sbt

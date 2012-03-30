@@ -1,4 +1,4 @@
-
+import scala.collection.mutable.ArrayBuffer
 /*
  * A Matrix representation mainly used to perform
  * matrix multiplication and LU factorisation
@@ -15,7 +15,7 @@ class Matrix(els: List[List[Float]]) {
   require(elements.forall(_.length == nCols))
 
   private def addRows(a: List[Float],
-    b: List[Float]): List[Float] =(a, b).zipped map (_ + _)
+    b: List[Float]): List[Float] = (a, b).zipped map (_ + _)
 
   private def subRows(a: List[Float],
     b: List[Float]): List[Float] = (a, b).zipped map (_ - _)
@@ -26,8 +26,7 @@ class Matrix(els: List[List[Float]]) {
   }
 
   def -(other: Matrix): Matrix = {
-    require((other.nRows == nRows) &&
-      (other.nCols == nCols))
+    require((other.nRows == nRows) && (other.nCols == nCols))
     new Matrix((elements, other.elements).zipped.map(subRows(_, _)))
   }
 
@@ -45,14 +44,13 @@ class Matrix(els: List[List[Float]]) {
 
   // optimisation for the case : this * this.transpose + weigthedIdentity(coef)
   def dotTranspose(coef: Float): Matrix = {
-    val indexedElem = Vector.concat(elements)
+    val indexedElem = ArrayBuffer.concat(elements)
     
     def mapIdx(i: Int,j: Int): Float = {
       if(i > j) Matrix.dotVectors(indexedElem(i), indexedElem(j)) 
       else if(i == j) 0.5f * (coef + Matrix.dotVectors(indexedElem(i), indexedElem(j)))
       else 0f
     }
-      
     val halfMat = new Matrix(List.tabulate(nRows, nRows)(mapIdx))
     halfMat + halfMat.transpose
   }
@@ -66,39 +64,40 @@ class Matrix(els: List[List[Float]]) {
     s2
   }
 
-  /* A faster version of the Doolittle LU decompostion
+  /* 
+   * A faster version of the Doolittle LU decompostion
    * May not be safe for side cases
    */
-  def fastLU: (Vector[Vector[Float]], Vector[Vector[Float]]) = {
+  def fastLU: (ArrayBuffer[ArrayBuffer[Float]], ArrayBuffer[ArrayBuffer[Float]]) = {
     require(nCols == nRows)
 
-    var L:Vector[Vector[Float]] = Vector.fill(nRows)(Vector.fill(nRows)(0f))
-    var U:Vector[Vector[Float]] = Vector.fill(nRows)(Vector.fill(nRows)(0f))
+    var L: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows)(ArrayBuffer.fill(nRows)(0f))
+    var U: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows)(ArrayBuffer.fill(nRows)(0f))
 
     def parSum(i: Int, j: Int, n: Int): Float = {
       var sum = 0f
       
       if(n > 0) {
-        for(m <- (0 to n-1))
+        for(m <- (0 to n - 1))
           sum += L(i)(m) * U(m)(j)
       }
       
       sum
     }
 
-    def slvL(i: Int)(j: Int): Float =
+    def slvL(i: Int, j: Int): Float =
       if(i < j) 0 
       else if(i == j) 1 
       else (elements(i)(j) - parSum(i,j,j)) / U(j)(j)
 
-    def slvU(i: Int)(j: Int): Float =
+    def slvU(i: Int, j: Int): Float =
       if(i > j) 0 
       else elements(i)(j) - parSum(i,j,i)
 
-    for(i <- (0 to nRows-1)){
-      for(j <- (0 to nRows-1)){
-        L = L.updated(i, L(i).updated(j, slvL(i)(j)))
-        U = U.updated(i, U(i).updated(j, slvU(i)(j)))
+    for(i <- (0 to nRows - 1)) {
+      for(j <- (0 to nRows - 1)) {
+        L(i).update(j, slvL(i, j))
+        U(i).update(j, slvU(i, j))
       }
     }
 
@@ -106,23 +105,22 @@ class Matrix(els: List[List[Float]]) {
   }
   
   // Solve the case this * x = other IF this is diagonal
-  private def diagSolve(vect: Vector[Vector[Float]], other: Matrix, diagUp: Boolean): Matrix = {
+  private def diagSolve(vect: ArrayBuffer[ArrayBuffer[Float]], other: Matrix, diagUp: Boolean): Matrix = {
     require(other.nRows == nCols && other.nCols == 1)
     
-    var x : Vector[Float] = Vector.fill(nRows)(0f)
+    var x : ArrayBuffer[Float] = ArrayBuffer.fill(nRows)(0f)
 
     def getX(i: Int) = {
       (other.elements(i)(0) - Matrix.dotVectors(vect(i), x)) / vect(i)(i)
     }
     
     if(diagUp) {
-      for(i <- (0 to nRows-1)) {
-        x = x.updated(nRows-1-i, getX(nRows-1-i))
-      }
+      for(i <- (0 to nRows - 1))
+        x.update(nRows - 1 - i, getX(nRows - 1 - i))
+        
     } else {
-       for(i <- (0 to nRows-1)) {
-        x = x.updated(i, getX(i))
-      }     
+       for(i <- (0 to nRows - 1))
+        x.update(i, getX(i))
     }
     
     new Matrix(x.toList map (_ :: Nil))
@@ -147,11 +145,11 @@ object Matrix {
   }
 
   def dotVectors(a: List[Float], b: List[Float]): Float = {
-    (a, b).zipped map(_ * _) reduce (_ + _)
+    (a, b).zipped.map(_ * _) reduce (_ + _)
   }
   
-  def dotVectors(a: Vector[Float], b: Vector[Float]): Float = {
-    (a, b).zipped map(_ * _) reduce (_ + _)
+  def dotVectors(a: ArrayBuffer[Float], b: ArrayBuffer[Float]): Float = {
+    (a, b).zipped.map(_ * _) reduce (_ + _)
   }
   
 }

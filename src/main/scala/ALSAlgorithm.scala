@@ -53,17 +53,14 @@ class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
       if(!dsi.usrToMov.contains(i)) {
         return List.fill(Nf)(0)
       }
-      // liste of movies rated by user i
       val ratedSet: Set[Int] = dsi.usrToMov(i).keySet
-      val mRatings: List[List[Float]] = m.filter(p => ratedSet.contains(p._1)).toList.sortWith(_._1 < _._1).map(_._2)
-      // matMi : matrix where only the movies rated by i are picked
+      val mRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (m(_))
       val matMi = new Matrix(mRatings.transpose)
-      val Ai = matMi * matMi.transpose + Matrix.weightIdentity(Nf)(mRatings.size * lambda)
-      // Rij : raw line of ratings form user i
-      val Rij = new Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(tup => tup._2) :: Nil)
-      val Vi = matMi * Rij.transpose
-      val ui = Ai.LUsolve(Vi) // column vector
-      ui.transpose.elements(0) // getting the first row
+      val Ai = matMi.dotTranspose(mRatings.size * lambda)
+      val Rij = new Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Vi = matMi * Rij
+      val ui = Ai.LUsolve(Vi)
+      ui.elements.flatten
     }
     println("[ALS] Solving U")
     u foreach (tup => u update (tup._1, solveUsr(tup._1)))
@@ -75,15 +72,13 @@ class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
         return List.fill(Nf)(0)
       }
       val ratedSet: Set[Int] = dsi.movToUsr(j).keySet
-      val uRatings: List[List[Float]] = u.filter(p => ratedSet.contains(p._1)).toList.sortWith(_._1 < _._1).map(_._2)
-      // matUi : matrix where only the user who rated j are picked
+      val uRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (u(_))
       val matUi = new Matrix(uRatings.transpose)
-      val Aj = matUi * matUi.transpose + Matrix.weightIdentity(Nf)(uRatings.size * lambda)
-      // Rij : raw column of ratings for movie j
-      val Rij = new Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(tup => tup._2) :: Nil)
-      val Vj = matUi * Rij.transpose
+      val Aj = matUi.dotTranspose(uRatings.size * lambda)
+      val Rij = new Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Vj = matUi * Rij
       val mj = Aj.LUsolve(Vj)
-      mj.transpose.elements(0)
+      mj.elements.flatten    
     }
     println("[ALS] Solving M")
     m foreach (tup => m update (tup._1, solveMov(tup._1)))
@@ -96,14 +91,14 @@ class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
       val delt = Matrix.dotVectors(user,movie) - expectedR
       delt * delt
     }
-     // square root of the sum of all the element square
      print("[ALS] Frobenius norm : ")
      var norm = 0f
      for(i <- (1 to dsi.usrToMov.size)) {
        dsi.usrToMov(i) foreach (tup => norm += delta(u(i),m(tup._1), tup._2))
      }
+     val rmse = sqrt(norm/dsi.nbrRatings).toFloat
      norm = sqrt(norm).toFloat
-     println(norm + "\n")
+     println(norm + " (RMSE : " + rmse + ")" + "\n")
      norm
   }
 }

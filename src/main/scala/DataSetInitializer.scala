@@ -50,9 +50,7 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
   def setUpM(Nf: Int): Map[Int, List[Float]] = {
     val r = new Random()
     def rand: Float = r.nextFloat() * MAXRAND // random between 0 -> MAXRAND
-    def randList: List[Float] = List.range(0, Nf-1, 1) map (x => rand)
-
-    println("[Dsi/SetUp] Setting up the Movie Matrix")
+    def randList: List[Float] = List.range(0, Nf - 1, 1) map (x => rand)
     val fRow = movToUsr mapValues (x => x.foldLeft(0f)((sum, a) => sum + a._2) / x.size)
     // Average on the first row, small random value on the other
     val M = fRow mapValues(x => x :: randList)
