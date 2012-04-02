@@ -19,6 +19,8 @@ object Test {
   def main(arg: Array[String]) {
     if(checkPar(arg))
       startParallel(parseArgs(arg drop 1))
+    else if(checkLa(arg))
+      startLa(parseArgs(arg drop 1))
     else
       startSerial(parseArgs(arg))
   }
@@ -29,14 +31,24 @@ object Test {
     val parAlg = new ParALSAlgorithm(getData,parg._2,parg._3)
     parAlg.stepN(parg._1)
   }
+  
+  def startLa(parg: (Int,Int,Float)) = {
+    val laAlg = new LaALSAlgorithm(getData,parg._2,parg._3)
+    laAlg.stepN(parg._1)
+  }
 
   def startSerial(parg: (Int,Int,Float)) = {
     val alg = new ALSAlgorithm(getData,parg._2,parg._3)
     alg.stepN(parg._1)
   }
 
-  def checkPar(arg: Array[String]):Boolean = arg.toList match {
+  def checkPar(arg: Array[String]): Boolean = arg.toList match {
     case "par" :: xs => true
+    case _ => false
+  }
+  
+  def checkLa(arg: Array[String]): Boolean = arg.toList match {
+    case "la" :: xs => true
     case _ => false
   }
 
@@ -59,15 +71,4 @@ object Test {
   // simple matcher
   def isInt: String => Boolean = _.matches("\\d+")
   def isFloat: String => Boolean = _.matches("\\d+\\.\\d+")
-
-  /* a simple test to check the correcteness of LU decomposition*/
-  /*def testLU = {
-   val r1:List[Float] = List(2,-1,1)
-   val r2:List[Float] = List(0,3,-2)
-   val r3:List[Float] = List(1,4,-1)
-   val mat = new Matrix(r1::r2::r3::Nil)
-   val LU = mat.fastLU
-   println(LU._1 * LU._2)
-   println(LU._1 * LU._2 - mat) // this should be ~= null matrix
-  }*/
 }

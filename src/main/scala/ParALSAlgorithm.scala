@@ -61,6 +61,9 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
     "\n\t[mu]Ratings : " + timerH(0) +
     "\n\tmat[MU]i : " + timerH(1) +
     "\n\tA[ij] : " + timerH(2) +
+    "\n\t concat : " + hRead(Matrix.timing(0)) +
+    "\n\t tabulate : " + hRead(Matrix.timing(1)) +
+    "\n\t halfmat : " + hRead(Matrix.timing(2)) +
     "\n\tRij : " + timerH(3) +
     "\n\tV[ij] : " + timerH(4) +
     "\n\tLU : " + timerH(5) +

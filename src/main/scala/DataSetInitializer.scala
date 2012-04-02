@@ -56,4 +56,14 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
     val M = fRow mapValues(x => x :: randList)
     M
   }
+  
+  def setUpMD(Nf: Int): Map[Int, List[Double]] = {
+    val r = new Random()
+    def rand: Double = r.nextDouble() * MAXRAND
+    def randList: List[Double] = List.range(0, Nf - 1, 1) map (x => rand)
+    val fRow = movToUsr mapValues (x => x.foldLeft(0d)((sum, a) => sum + a._2) / x.size)
+    // Average on the first row, small random value on the other
+    val M = fRow mapValues(x => x :: randList)
+    M
+  }
 }

@@ -7,5 +7,6 @@ object Constants {
   // max value for the small random range [0,max]
   val MAXRAND: Float = 0.5f
 
-  val incr: Int = 20
+  val incr = 20
+  val STEPS = 3
 }

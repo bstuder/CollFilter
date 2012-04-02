@@ -44,15 +44,20 @@ class Matrix(els: List[List[Float]]) {
 
   // optimisation for the case : this * this.transpose + weigthedIdentity(coef)
   def dotTranspose(coef: Float): Matrix = {
+    val t1 = System.currentTimeMillis
     val indexedElem = ArrayBuffer.concat(elements)
-    
+    val t2 = System.currentTimeMillis
     def mapIdx(i: Int,j: Int): Float = {
       if(i > j) Matrix.dotVectors(indexedElem(i), indexedElem(j)) 
       else if(i == j) 0.5f * (coef + Matrix.dotVectors(indexedElem(i), indexedElem(j)))
       else 0f
     }
     val halfMat = new Matrix(List.tabulate(nRows, nRows)(mapIdx))
-    halfMat + halfMat.transpose
+    val t3 = System.currentTimeMillis
+    val tmp = halfMat + halfMat.transpose
+    val t4 = System.currentTimeMillis
+    Matrix.timing = (Matrix.timing zip ((t2-t1)::(t3-t2)::(t4-t3)::Nil)).map(x => x._1 + x._2)
+    tmp
   }
 
   // Solve the case : this * x = other with LU decompositon of this
@@ -71,8 +76,8 @@ class Matrix(els: List[List[Float]]) {
   def fastLU: (ArrayBuffer[ArrayBuffer[Float]], ArrayBuffer[ArrayBuffer[Float]]) = {
     require(nCols == nRows)
 
-    var L: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows)(ArrayBuffer.fill(nRows)(0f))
-    var U: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows)(ArrayBuffer.fill(nRows)(0f))
+    var L: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows, nRows)(0f)
+    var U: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows, nRows)(0f)
 
     def parSum(i: Int, j: Int, n: Int): Float = {
       var sum = 0f
@@ -135,21 +140,22 @@ class Matrix(els: List[List[Float]]) {
 }
 
 object Matrix {
-
+  var timing: List[Long] = List.fill(3)(0L)
+  
   // the identity matrix
   def identity(size: Int): Matrix = weightIdentity(size)(1)
 
   // the weighted identity matrix (the diagonal contains the coef value)
   def weightIdentity(size: Int)(coef: Float): Matrix = {
-    new Matrix(List.range(0,size) map (x => List.fill(size)(0f) updated(x,coef)))
+    new Matrix(List.tabulate(size, size)((i, j) => if(i == j) coef else 0))
   }
 
   def dotVectors(a: List[Float], b: List[Float]): Float = {
-    (a, b).zipped.map(_ * _) reduce (_ + _)
+    (a, b).zipped map (_ * _) sum
   }
   
   def dotVectors(a: ArrayBuffer[Float], b: ArrayBuffer[Float]): Float = {
-    (a, b).zipped.map(_ * _) reduce (_ + _)
+    (a, b).zipped map (_ * _) sum
   }
   
 }
