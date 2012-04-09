@@ -1,4 +1,3 @@
-
 import scala.io.Source
 import scala.util.matching.Regex
 import scala.io.BufferedSource
@@ -11,7 +10,7 @@ object DataSetReader {
 
   val separator: Regex = """::""".r
 
-  def apply(path: String): Stream[(Int,Int,Float)] = {
+  def apply(path: String): Stream[(Int, Int, Float)] = {
     val src: BufferedSource = Source fromFile path
 
     // iterator lines by lines
@@ -21,7 +20,7 @@ object DataSetReader {
     (iter map splitNCast).toStream
   }
 
-  def splitNCast (str: String): (Int,Int,Float) = {
+  def splitNCast (str: String): (Int, Int, Float) = {
     val tmp = separator.split(str)
     (tmp(0).toInt, tmp(1).toInt, tmp(2).toFloat)
   }

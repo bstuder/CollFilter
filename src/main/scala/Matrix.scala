@@ -1,9 +1,12 @@
 import scala.collection.mutable.ArrayBuffer
+import scala.math._
 /*
  * A Matrix representation mainly used to perform
  * matrix multiplication and LU factorisation
  */
 class Matrix(els: List[List[Float]]) {
+  import Matrix._
+  
   val elements: List[List[Float]] = els
   def nRows: Int = elements.length
   def nCols: Int = elements match {
@@ -49,44 +52,50 @@ class Matrix(els: List[List[Float]]) {
     val t2 = System.currentTimeMillis
     def mapIdx(i: Int,j: Int): Float = {
       if(i > j) Matrix.dotVectors(indexedElem(i), indexedElem(j)) 
-      else if(i == j) 0.5f * (coef + Matrix.dotVectors(indexedElem(i), indexedElem(j)))
+      else if(i == j) 0.5f * (coef + Matrix.dotVectors(indexedElem(i), indexedElem(i)))
       else 0f
     }
-    val halfMat = new Matrix(List.tabulate(nRows, nRows)(mapIdx))
+    //-----------------------------------------------------
+    //val halfMat = new Matrix(List.tabulate(nRows, nRows)(mapIdx))
+    val halfArr = ArrayBuffer.fill(nRows, nRows)(0f)
+    for(i <- 0 until nRows ; j <- 0 to i) {
+        halfArr(i).update(j, mapIdx(i, j))
+    }
+    val halfMat = new Matrix(halfArr.toList map (_.toList))
+    //-----------------------------------------------------
     val t3 = System.currentTimeMillis
-    val tmp = halfMat + halfMat.transpose
+    val cmat = halfMat + halfMat.transpose
     val t4 = System.currentTimeMillis
     Matrix.timing = (Matrix.timing zip ((t2-t1)::(t3-t2)::(t4-t3)::Nil)).map(x => x._1 + x._2)
-    tmp
+    cmat
   }
 
   // Solve the case : this * x = other with LU decompositon of this
-  def LUsolve(other: Matrix): Matrix = {
+  def LUsolve(other: Matrix): List[Float] = {
     require(other.nRows == nCols && other.nCols == 1)
-    val lu = this.fastLU // lu._1 * lu._2 = this
-    val s1 = diagSolve(lu._1, other, false) //lu._1 * s1 = other
-    val s2 = diagSolve(lu._2, s1, true) // lu._2 * s2 = s1
-    s2
+    val cl = this.cholesky 
+    val c0 = ArrayBuffer.concat(other.elements.flatten)
+    val c1 = diagSolve(cl._1, c0, false)
+    val c2 = diagSolve(cl._2, c1, true)
+    c2.toList
   }
 
   /* 
    * A faster version of the Doolittle LU decompostion
    * May not be safe for side cases
    */
-  def fastLU: (ArrayBuffer[ArrayBuffer[Float]], ArrayBuffer[ArrayBuffer[Float]]) = {
+  def fastLU: (DenseMatrix, DenseMatrix) = {
     require(nCols == nRows)
 
-    var L: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows, nRows)(0f)
-    var U: ArrayBuffer[ArrayBuffer[Float]] = ArrayBuffer.fill(nRows, nRows)(0f)
+    val L: DenseMatrix = ArrayBuffer.fill(nRows, nRows)(0f)
+    val U: DenseMatrix = ArrayBuffer.fill(nRows, nRows)(0f)
 
     def parSum(i: Int, j: Int, n: Int): Float = {
       var sum = 0f
-      
       if(n > 0) {
-        for(m <- (0 to n - 1))
+        for(m <- (0 until n))
           sum += L(i)(m) * U(m)(j)
       }
-      
       sum
     }
 
@@ -99,8 +108,8 @@ class Matrix(els: List[List[Float]]) {
       if(i > j) 0 
       else elements(i)(j) - parSum(i,j,i)
 
-    for(i <- (0 to nRows - 1)) {
-      for(j <- (0 to nRows - 1)) {
+    for(i <- (0 until nRows)) {
+      for(j <- (0 until nRows)) {
         L(i).update(j, slvL(i, j))
         U(i).update(j, slvU(i, j))
       }
@@ -109,26 +118,59 @@ class Matrix(els: List[List[Float]]) {
     (L, U)
   }
   
-  // Solve the case this * x = other IF this is diagonal
-  private def diagSolve(vect: ArrayBuffer[ArrayBuffer[Float]], other: Matrix, diagUp: Boolean): Matrix = {
-    require(other.nRows == nCols && other.nCols == 1)
+  /*
+   * Cholesky decomposition (LU equivalent for Hermitian matrix)
+   */
+   def cholesky: (DenseMatrix, DenseMatrix) = {
+    require(nCols == nRows)
     
-    var x : ArrayBuffer[Float] = ArrayBuffer.fill(nRows)(0f)
+    val C: DenseMatrix = ArrayBuffer.fill(nRows, nRows)(0f)
+    
+    def parSum(i: Int, j: Int): Float = {
+      var sum = 0f
+      if(j > 0) {
+        for(k <- (0 to j-1))
+          sum += C(i)(k) * C(j)(k)
+      }
+      sum
+    }
+
+    def slvC(i: Int, j: Int): Float = 
+      if(i > j)
+        (elements(i)(j) - parSum(i, j)) / C(j)(j)
+      else if(i == j)
+        sqrt(elements(i)(i) - parSum(i,i)).toFloat
+      else 0
+    
+    // should proceed row by row (implementation seemes to do that)
+    for(i <- (0 until nRows)) {
+      for(j <- (0 to i)) {
+        C(i).update(j, slvC(i, j))
+      }
+    }
+    
+    (C, C.transpose)
+   }
+  
+  // Solve the case mat * vect = other IF this is diagonal
+  private def diagSolve(mat: DenseMatrix, other: DenseVector, diagUp: Boolean): DenseVector = {
+    require(other.size == nCols)
+    
+    var vect : DenseVector = ArrayBuffer.fill(nRows)(0f)
 
     def getX(i: Int) = {
-      (other.elements(i)(0) - Matrix.dotVectors(vect(i), x)) / vect(i)(i)
+      (other(i) - Matrix.dotVectors(mat(i), vect)) / mat(i)(i)
     }
     
     if(diagUp) {
       for(i <- (0 to nRows - 1))
-        x.update(nRows - 1 - i, getX(nRows - 1 - i))
-        
+        vect.update(nRows - 1 - i, getX(nRows - 1 - i))
     } else {
        for(i <- (0 to nRows - 1))
-        x.update(i, getX(i))
+        vect.update(i, getX(i))
     }
     
-    new Matrix(x.toList map (_ :: Nil))
+    vect
   }
 
   override def toString: String = {
@@ -140,22 +182,35 @@ class Matrix(els: List[List[Float]]) {
 }
 
 object Matrix {
+  type DenseMatrix = ArrayBuffer[ArrayBuffer[Float]]
+  type DenseVector = ArrayBuffer[Float]
+  
   var timing: List[Long] = List.fill(3)(0L)
+  
+  def apply(elements: List[List[Float]]): Matrix = new Matrix(elements)
+  
+  def apply(dmat: DenseMatrix): Matrix = {
+    def mapIdx(i: Int, j: Int) = dmat(i)(j)
+    if(dmat.size > 0)
+      Matrix(List.tabulate(dmat.size, dmat(0).size)(mapIdx))
+    else
+      Matrix(Nil)
+  }
   
   // the identity matrix
   def identity(size: Int): Matrix = weightIdentity(size)(1)
 
   // the weighted identity matrix (the diagonal contains the coef value)
   def weightIdentity(size: Int)(coef: Float): Matrix = {
-    new Matrix(List.tabulate(size, size)((i, j) => if(i == j) coef else 0))
+    Matrix(List.tabulate(size, size)((i, j) => if(i == j) coef else 0))
   }
 
   def dotVectors(a: List[Float], b: List[Float]): Float = {
-    (a, b).zipped map (_ * _) sum
+    (a, b).zipped map (_ * _) reduce (_ + _)
   }
   
-  def dotVectors(a: ArrayBuffer[Float], b: ArrayBuffer[Float]): Float = {
-    (a, b).zipped map (_ * _) sum
+  def dotVectors(a: DenseVector, b: DenseVector): Float = {
+    (a, b).zipped map (_ * _) reduce (_ + _)
   }
   
 }

@@ -55,12 +55,12 @@ class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
       }
       val ratedSet: Set[Int] = dsi.usrToMov(i).keySet
       val mRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (m(_))
-      val matMi = new Matrix(mRatings.transpose)
+      val matMi = Matrix(mRatings.transpose)
       val Ai = matMi.dotTranspose(mRatings.size * lambda)
-      val Rij = new Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
       val Vi = matMi * Rij
       val ui = Ai.LUsolve(Vi)
-      ui.elements.flatten
+      ui
     }
     println("[ALS] Solving U")
     u foreach (tup => u update (tup._1, solveUsr(tup._1)))
@@ -73,12 +73,12 @@ class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
       }
       val ratedSet: Set[Int] = dsi.movToUsr(j).keySet
       val uRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (u(_))
-      val matUi = new Matrix(uRatings.transpose)
+      val matUi = Matrix(uRatings.transpose)
       val Aj = matUi.dotTranspose(uRatings.size * lambda)
-      val Rij = new Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
       val Vj = matUi * Rij
       val mj = Aj.LUsolve(Vj)
-      mj.elements.flatten    
+      mj
     }
     println("[ALS] Solving M")
     m foreach (tup => m update (tup._1, solveMov(tup._1)))

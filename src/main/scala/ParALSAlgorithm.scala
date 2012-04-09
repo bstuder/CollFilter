@@ -66,7 +66,7 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
     "\n\t halfmat : " + hRead(Matrix.timing(2)) +
     "\n\tRij : " + timerH(3) +
     "\n\tV[ij] : " + timerH(4) +
-    "\n\tLU : " + timerH(5) +
+    "\n\tCholesky : " + timerH(5) +
     "\n\n\tTotal : " + hRead(sum) + "\n")
   }
 
@@ -79,11 +79,11 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t1 = tick
       val mRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (m(_))
       val t2 = tick
-      val matMi = new Matrix(mRatings.transpose)
+      val matMi = Matrix(mRatings.transpose)
       val t3 = tick
       val Ai = matMi.dotTranspose(mRatings.size * lambda)
       val t4 = tick
-      val Rij = new Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
       val t5 = tick
       val Vi = matMi * Rij
       val t6 = tick
@@ -91,7 +91,7 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t7 = tick
       val loctimes = (t2-t1) :: (t3-t2) :: (t4-t3) :: (t5-t4) :: (t6-t5) :: (t7-t6) :: Nil
       timer = (timer zip loctimes) map (x => x._1 + x._2)
-      ui.elements.flatten
+      ui
     }
     println("[ALS] Solving U")
     u foreach (tup => u update (tup._1, solveUsr(tup._1)))
@@ -106,11 +106,11 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t1 = tick
       val uRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (u(_))
       val t2 = tick
-      val matUi = new Matrix(uRatings.transpose)
+      val matUi = Matrix(uRatings.transpose)
       val t3 = tick
       val Aj = matUi.dotTranspose(uRatings.size * lambda)
       val t4 = tick
-      val Rij = new Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
       val t5 = tick
       val Vj = matUi * Rij
       val t6 = tick
@@ -118,7 +118,7 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val t7 = tick
       val loctimes = (t2-t1) :: (t3-t2) :: (t4-t3) :: (t5-t4) :: (t6-t5) :: (t7-t6) :: Nil
       timer = (timer zip loctimes) map (x => x._1 + x._2)
-      mj.elements.flatten
+      mj
     }
     println("[ALS] Solving M")
     m foreach (tup => m update (tup._1, solveMov(tup._1)))

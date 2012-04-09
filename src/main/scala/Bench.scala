@@ -40,7 +40,7 @@ object Bench extends TicToc {
     bench(30)
     bench(50)
     bench(100)
-    //test(200)
-    //test(500)
+    //bench(200)
+    //bench(500)
   }
 }

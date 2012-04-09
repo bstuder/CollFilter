@@ -34,7 +34,7 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
     for ((uid, mid, rat) <- src) {
       cnt += 1
       if(cnt % incr == 0) {
-        print("\r" + (cnt*100/nbrRatings) +"%")
+        print("\r" + (cnt * 100 / nbrRatings) +"%")
       }
       addInnerKey(usrToMov, uid, mid, rat)
       addInnerKey(movToUsr, mid, uid, rat)
