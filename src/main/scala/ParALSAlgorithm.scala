@@ -1,8 +1,10 @@
 import scala.collection.parallel.mutable.ParHashMap
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import scala.collection.Set
 import scala.math._
 import Constants._
+import Matrix._
 
 /*
  * The parallel implementation of ALS algorithm using parallel Hash map
@@ -29,14 +31,14 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   //------------------------------------------------------
 
   val dsi: DataSetInitializer = dataSetInit
-  var m: ParHashMap[Int, List[Float]] = new ParHashMap()
-  var u: ParHashMap[Int, List[Float]] = new ParHashMap()
+  var m: ParHashMap[Int, DenseVector] = new ParHashMap()
+  var u: ParHashMap[Int, DenseVector] = new ParHashMap()
 
   def init = {
     dsi.init
     m ++= dsi.setUpM(Nf)
     for(i <- 1 to dsi.usrToMov.size) {
-      u += ((i, Nil))
+      u += ((i, ArrayBuffer.empty))
     }
   }
 
@@ -61,9 +63,8 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
     "\n\t[mu]Ratings : " + timerH(0) +
     "\n\tmat[MU]i : " + timerH(1) +
     "\n\tA[ij] : " + timerH(2) +
-    "\n\t concat : " + hRead(Matrix.timing(0)) +
-    "\n\t tabulate : " + hRead(Matrix.timing(1)) +
-    "\n\t halfmat : " + hRead(Matrix.timing(2)) +
+    "\n\t tabulate : " + hRead(Matrix.timing(0)) +
+    "\n\t halfmat : " + hRead(Matrix.timing(1)) +
     "\n\tRij : " + timerH(3) +
     "\n\tV[ij] : " + timerH(4) +
     "\n\tCholesky : " + timerH(5) +
@@ -71,23 +72,23 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   }
 
   def solveU = {
-    def solveUsr(i: Int): List[Float] = {
+    def solveUsr(i: Int): DenseVector = {
       if(!dsi.usrToMov.contains(i)) {
-        return List.fill(Nf)(0)
+        return ArrayBuffer.fill(Nf)(0)
       }
       val ratedSet: Set[Int] = dsi.usrToMov(i).keySet
       val t1 = tick
-      val mRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (m(_))
+      val mRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (m(_))
       val t2 = tick
       val matMi = Matrix(mRatings.transpose)
       val t3 = tick
       val Ai = matMi.dotTranspose(mRatings.size * lambda)
       val t4 = tick
-      val Rij = Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(ArrayBuffer.concat(dsi.usrToMov(i)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
       val t5 = tick
       val Vi = matMi * Rij
       val t6 = tick
-      val ui = Ai.LUsolve(Vi)
+      val ui = Ai.CLsolve(Vi)
       val t7 = tick
       val loctimes = (t2-t1) :: (t3-t2) :: (t4-t3) :: (t5-t4) :: (t6-t5) :: (t7-t6) :: Nil
       timer = (timer zip loctimes) map (x => x._1 + x._2)
@@ -98,23 +99,23 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   }
 
   def solveM = {
-    def solveMov(j: Int): List[Float] = {
+    def solveMov(j: Int): DenseVector = {
       if(!dsi.movToUsr.contains(j)) {
-        return List.fill(Nf)(0)
+        return ArrayBuffer.fill(Nf)(0)
       }
       val ratedSet: Set[Int] = dsi.movToUsr(j).keySet
       val t1 = tick
-      val uRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (u(_))
+      val uRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (u(_))
       val t2 = tick
       val matUi = Matrix(uRatings.transpose)
       val t3 = tick
       val Aj = matUi.dotTranspose(uRatings.size * lambda)
       val t4 = tick
-      val Rij = Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(ArrayBuffer.concat(dsi.movToUsr(j)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
       val t5 = tick
       val Vj = matUi * Rij
       val t6 = tick
-      val mj = Aj.LUsolve(Vj)
+      val mj = Aj.CLsolve(Vj)
       val t7 = tick
       val loctimes = (t2-t1) :: (t3-t2) :: (t4-t3) :: (t5-t4) :: (t6-t5) :: (t7-t6) :: Nil
       timer = (timer zip loctimes) map (x => x._1 + x._2)
@@ -125,8 +126,8 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   }
 
   def checkNorm: Float = {
-    def delta(user: List[Float], movie: List[Float], expectedR: Float): Float = {
-      val delt = Matrix.dotVectors(user,movie) - expectedR
+    def delta(user: DenseVector, movie: DenseVector, expectedR: Float): Float = {
+      val delt = Matrix.dotVectors(user, movie) - expectedR
       delt * delt
     }
      print("[ALS] Frobenius norm : ")

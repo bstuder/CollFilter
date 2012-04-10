@@ -1,25 +1,27 @@
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import scala.collection.Set
 import scala.math._
 import Constants._
+import Matrix._
 
 /*
  * The original serial ALS algorithm
  */
-class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
+class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
+  def this(dataSetInit: DataSetInitializer) = this(dataSetInit,NF,LAMBDA)
+  def this(dataSetInit: DataSetInitializer, Nf: Int) = this(dataSetInit,Nf,LAMBDA)
+  def this(dataSetInit: DataSetInitializer, lambda: Float) = this(dataSetInit,NF,lambda)
 
-  def this(dsi: DataSetInitializer) = this(dsi,NF,LAMBDA)
-  def this(dsi: DataSetInitializer, Nf: Int) = this(dsi,Nf,LAMBDA)
-  def this(dsi: DataSetInitializer, lambda: Float) = this(dsi,NF,lambda)
-
-  var m: HashMap[Int, List[Float]] = new HashMap()
-  var u: HashMap[Int, List[Float]] = new HashMap()
+  val dsi: DataSetInitializer = dataSetInit
+  var m: HashMap[Int, DenseVector] = new HashMap()
+  var u: HashMap[Int, DenseVector] = new HashMap()
 
   def init = {
     dsi.init
     m ++= dsi.setUpM(Nf)
     for(i <- 1 to dsi.usrToMov.size) {
-      u += ((i, Nil))
+      u += ((i, ArrayBuffer.empty))
     }
   }
 
@@ -31,35 +33,26 @@ class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
     }
   }
 
-  //step until the stopping criterion is satisfied
-  def stepUntil(threshold: Float) = {
-    do{
-      step
-    } while(threshold < checkNorm)
-  }
-
   def step = {
     if(m.size == 0) {
       init
     }
-    //fix M solve U
     solveU
-    //fix U solve M
     solveM
   }
 
   def solveU = {
-    def solveUsr(i: Int): List[Float] = {
+    def solveUsr(i: Int): DenseVector = {
       if(!dsi.usrToMov.contains(i)) {
-        return List.fill(Nf)(0)
+        return ArrayBuffer.fill(Nf)(0)
       }
       val ratedSet: Set[Int] = dsi.usrToMov(i).keySet
-      val mRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (m(_))
+      val mRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (m(_))
       val matMi = Matrix(mRatings.transpose)
       val Ai = matMi.dotTranspose(mRatings.size * lambda)
-      val Rij = Matrix(dsi.usrToMov(i).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(ArrayBuffer.concat(dsi.usrToMov(i)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
       val Vi = matMi * Rij
-      val ui = Ai.LUsolve(Vi)
+      val ui = Ai.CLsolve(Vi)
       ui
     }
     println("[ALS] Solving U")
@@ -67,28 +60,26 @@ class ALSAlgorithm(dsi: DataSetInitializer, Nf: Int, lambda: Float) {
   }
 
   def solveM = {
-    def solveMov(j: Int): List[Float] = {
+    def solveMov(j: Int): DenseVector = {
       if(!dsi.movToUsr.contains(j)) {
-        return List.fill(Nf)(0)
+        return ArrayBuffer.fill(Nf)(0)
       }
       val ratedSet: Set[Int] = dsi.movToUsr(j).keySet
-      val uRatings: List[List[Float]] = ratedSet.toList.sortWith(_ < _) map (u(_))
+      val uRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (u(_))
       val matUi = Matrix(uRatings.transpose)
       val Aj = matUi.dotTranspose(uRatings.size * lambda)
-      val Rij = Matrix(dsi.movToUsr(j).toList.sortWith(_._1 < _._1).map(_._2 :: Nil))
+      val Rij = Matrix(ArrayBuffer.concat(dsi.movToUsr(j)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
       val Vj = matUi * Rij
-      val mj = Aj.LUsolve(Vj)
+      val mj = Aj.CLsolve(Vj)
       mj
     }
     println("[ALS] Solving M")
     m foreach (tup => m update (tup._1, solveMov(tup._1)))
   }
 
-  /* We calculate the Frobenius norm between our guessed rating
-   * and the provided ratings : u[i] * m[j] =~ r[i][j] */
   def checkNorm: Float = {
-    def delta(user: List[Float], movie: List[Float], expectedR: Float): Float = {
-      val delt = Matrix.dotVectors(user,movie) - expectedR
+    def delta(user: DenseVector, movie: DenseVector, expectedR: Float): Float = {
+      val delt = Matrix.dotVectors(user, movie) - expectedR
       delt * delt
     }
      print("[ALS] Frobenius norm : ")
