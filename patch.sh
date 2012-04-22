@@ -14,6 +14,8 @@
 # Author: Grzegorz Kossakowski <grzegorz.kossakowski@gmail.com>
 
 set -e
+curr=`pwd`
+# patching in the home if the default cache is there
 
 for i in $(find $HOME/.sbt/boot/scala-2.9.1/org.scala-tools.sbt/sbt/0.11.*/compiler-interface-src -name 'compiler-interface-src-0.11.*.jar'); do
 t="${i%.jar}-tmp"
@@ -27,4 +29,23 @@ t="${i%.jar}-tmp"
   zip -r $i .
   cd ..
   rm -rf $t
+done
+
+cd "$curr"
+# patching in the project/ 
+
+for i in $(find project/boot/scala-2.9.1/org.scala-tools.sbt/sbt/0.11.*/compiler-interface-src -name 'compiler-interface-src-0.11.*.jar'); do
+t="${i%.jar}-tmp"
+  echo $t
+  unzip $i -d $t
+  cd $t
+  #apply the patch only if it's not applied yet
+  (set +e; grep -q 'sym\.isLocalClass || sym\.isAnonymousClass || sym\.fullName\.endsWith(LocalChild\.toString)' API.scala;
+    if [ "$?" -ne 0 ]; then perl -pi -e 's/sym\.fullName\.endsWith\(LocalChild\)/sym\.fullName\.endsWith\(LocalChild\.toString\)/g' API.scala ; fi; set -e)
+  cd ..
+  rm `basename $i`
+  cd `basename $t`
+  zip -r "../`basename $i`" .
+  cd ..
+  rm -rf `basename $t`
 done
