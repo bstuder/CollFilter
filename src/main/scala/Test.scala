@@ -1,12 +1,7 @@
 import Constants._
 
 object Test {
-  val path100k = "src/main/resources/ratings100K.dat"
-  val path1m = "src/main/resources/ratings1M.dat"
-  val path10m = "src/main/resources/ratings10M.dat"
-
   val curr = path1m
-
   val usage = "\nThe arguments are : parallelisation, number of steps," +
     "number of hidden factors, lambda regulation values \n" +
     "Default values are parallelisation off, steps=1, Nf="+NF+", lambda="+LAMBDA+"\n" +
@@ -25,20 +20,20 @@ object Test {
       startSerial(parseArgs(arg))
   }
 
-  def getData = new DataSetInitializer(DataSetReader(curr))
+  def getData = DataSetInitializer(DataSetReader(curr))
 
-  def startParallel(parg: (Int,Int,Float)) = {
-    val parAlg = new ParALSAlgorithm(getData,parg._2,parg._3)
+  def startParallel(parg: (Int, Int, Float)) = {
+    val parAlg = ParALSAlgorithm(getData, parg._2, parg._3)
     parAlg.stepN(parg._1)
   }
   
-  def startLa(parg: (Int,Int,Float)) = {
-    val laAlg = new LaALSAlgorithm(getData,parg._2,parg._3)
+  def startLa(parg: (Int, Int, Float)) = {
+    val laAlg = LaALSAlgorithm(getData, parg._2, parg._3)
     laAlg.stepN(parg._1)
   }
 
-  def startSerial(parg: (Int,Int,Float)) = {
-    val alg = new ALSAlgorithm(getData,parg._2,parg._3)
+  def startSerial(parg: (Int, Int, Float)) = {
+    val alg = ALSAlgorithm(getData, parg._2, parg._3)
     alg.stepN(parg._1)
   }
 
@@ -53,16 +48,16 @@ object Test {
   }
 
   // Parsing the arguments of the run
-  def parseArgs(arg: Array[String]):(Int,Int,Float) = arg.toList match {
+  def parseArgs(arg: Array[String]): (Int, Int, Float) = arg.toList match {
       case Nil => (1,NF,LAMBDA)
       case n :: Nil => n match {
-        case x if isInt(x) => (x.toInt,NF,LAMBDA)
+        case x if isInt(x) => (x.toInt, NF, LAMBDA)
         case _ => println(usage) ; sys.exit(0)
         }
       case n :: nf :: Nil if isInt(n) && isInt(nf) =>
-        (n.toInt,nf.toInt,LAMBDA)
+        (n.toInt, nf.toInt, LAMBDA)
       case n :: lam :: Nil if isInt(n) && isFloat(lam) =>
-        (n.toInt,NF,lam.toFloat)
+        (n.toInt, NF, lam.toFloat)
       case n :: nf :: lam :: Nil if isInt(n) && isInt(nf) && isFloat(lam) =>
         (n.toInt, nf.toInt, lam.toFloat)
       case _ => println(usage) ; sys.exit(0)

@@ -1,46 +1,55 @@
+import benchmark.TicToc
 import Constants._
 
 object Bench extends TicToc {
-  val path100k = "src/main/resources/ratings100K.dat"
-  val path1m = "src/main/resources/ratings1M.dat"
-  val path10m = "src/main/resources/ratings10M.dat"
-  
   def main(arg: Array[String]) {
     val curr = arg.toList match {
       case "100k" :: _ => path100k
       case "1m" :: _ => path1m
       case "10m" :: _ => path10m
-      case _ => path100k
+      case _ => path1m
     }
-    val data = new DataSetInitializer(DataSetReader(curr))
+    
+    val data = DataSetInitializer(DataSetReader(curr))
     
     def benchSerial(fact: Int) {
-      println("\t\t[Benchmark] Serial factor : " + fact)
-      val alg = new ALSAlgorithm(data, fact)
+      println("\t\t[Benchmark] Serial, factor : " + fact)
+      val alg = ALSAlgorithm(data, fact)
       tic
       alg.stepN(STEPS)
       toc("Ser" + fact)
     }
    
     def benchPar(fact: Int) {
-      println("\t\t[Benchmark] Parallel factor : " + fact)
-      val alg = new ParALSAlgorithm(data, fact)
+      println("\t\t[Benchmark] Parallel, factor : " + fact)
+      val alg = ParALSAlgorithm(data, fact)
       tic
       alg.stepN(STEPS)
       toc("Par" + fact)
     }
     
+    def benchMenthor(fact: Int) {
+      println("\t\t[Benchmark] Menthor, factor : " + fact)
+      val alg = MenthorALSAlgorithm(data, fact)
+      tic
+      alg.stepN(STEPS)
+      toc("Mth" + fact)
+    }
+    
     def bench(fact: Int) {
       benchSerial(fact)
+      benchMenthor(fact)
       benchPar(fact)
       printTimesLog
+      println("\n")
     }
     
     bench(10)
     bench(30)
     bench(50)
     bench(100)
-    //bench(200)
+    bench(200)
+    //bench(300)
     //bench(500)
   }
 }

@@ -1,29 +1,28 @@
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{ArrayBuffer, Ctrie}
 import scala.collection.Map
 import scala.util.Random
 
 /*
- * Read the stream of information (userId,movieId,rating)
- * and popuilate 2 sparse Matrix (as Map of Map)
+ * Read the stream of information (userId, movieId, rating)
+ * and populate 2 sparse Matrix (as Map of Map)
  */
 class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
   import Constants._
 
-  val usrToMov = new HashMap[Int, HashMap[Int, Float]]
-  val movToUsr = new HashMap[Int, HashMap[Int, Float]]
+  val usrToMov = new Ctrie[Int, Ctrie[Int, Float]]
+  val movToUsr = new Ctrie[Int, Ctrie[Int, Float]]
 
   val nbrRatings: Int = src.length
 
   //format is : (UserID, MovieID, Rating)
   def init {
-    def addInnerKey(map: HashMap[Int, HashMap[Int, Float]],
+    def addInnerKey(map: Ctrie[Int, Ctrie[Int, Float]],
       oKey: Int, iKey: Int, value: Float) = {
       map.get(oKey) match {
         case Some(imap) => imap += ((iKey, value))
         case None => {
           //adding a new map
-          val tmp = new HashMap[Int, Float]
+          val tmp = new Ctrie[Int, Float]
           tmp += ((iKey, value))
           map += ((oKey, tmp))
         }
@@ -50,21 +49,24 @@ class DataSetInitializer(src: Stream[(Int, Int, Float)]) {
 
   def setUpM(Nf: Int): Map[Int, ArrayBuffer[Float]] = {
     val r = new Random()
-    def rand: Float = r.nextFloat() * MAXRAND // random between 0 -> MAXRAND
-    def randList = ArrayBuffer.range(0, Nf - 1, 1) map (x => rand)
-    val fRow = movToUsr mapValues (x => x.foldLeft(0f)((sum, a) => sum + a._2) / x.size)
+    def rand: Float = r.nextFloat() * MAXRAND
+    def randList = ArrayBuffer.fill(Nf - 1)(rand)
     // Average on the first row, small random value on the other
-    val M = fRow mapValues(randList.+:(_))
-    M
+    movToUsr mapValues (x => randList.+:((0f /: x)(_ + _._2) / x.size))
   }
   
   def setUpMD(Nf: Int): Map[Int, List[Double]] = {
     val r = new Random()
     def rand: Double = r.nextDouble() * MAXRAND
-    def randList: List[Double] = List.range(0, Nf - 1, 1) map (x => rand)
-    val fRow = movToUsr mapValues (x => x.foldLeft(0d)((sum, a) => sum + a._2) / x.size)
-    // Average on the first row, small random value on the other
-    val M = fRow mapValues(x => x :: randList)
-    M
+    def randList: List[Double] = List.fill(Nf - 1)(rand)
+    movToUsr mapValues (x => ((0d /: x)(_ + _._2) / x.size) :: randList)
+  }
+}
+
+object DataSetInitializer {
+  def apply(src: Stream[(Int, Int, Float)]): DataSetInitializer = {
+    val dsi = new DataSetInitializer(src)
+    dsi.init
+    dsi
   }
 }

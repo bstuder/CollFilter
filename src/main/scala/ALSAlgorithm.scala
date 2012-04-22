@@ -1,7 +1,5 @@
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.HashMap
-import scala.collection.Set
-import scala.math._
+import scala.collection.mutable.{ArrayBuffer, Ctrie}
+import scala.math.sqrt
 import Constants._
 import Matrix._
 
@@ -9,18 +7,13 @@ import Matrix._
  * The original serial ALS algorithm
  */
 class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
-  def this(dataSetInit: DataSetInitializer) = this(dataSetInit,NF,LAMBDA)
-  def this(dataSetInit: DataSetInitializer, Nf: Int) = this(dataSetInit,Nf,LAMBDA)
-  def this(dataSetInit: DataSetInitializer, lambda: Float) = this(dataSetInit,NF,lambda)
-
   val dsi: DataSetInitializer = dataSetInit
-  var m: HashMap[Int, DenseVector] = new HashMap()
-  var u: HashMap[Int, DenseVector] = new HashMap()
+  val m: Ctrie[Int, DenseVector] = new Ctrie()
+  val u: Ctrie[Int, DenseVector] = new Ctrie()
 
   def init = {
-    dsi.init
     m ++= dsi.setUpM(Nf)
-    for(i <- 1 to dsi.usrToMov.size) {
+    for(i <- dsi.usrToMov.keySet) {
       u += ((i, ArrayBuffer.empty))
     }
   }
@@ -34,9 +27,6 @@ class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   }
 
   def step = {
-    if(m.size == 0) {
-      init
-    }
     solveU
     solveM
   }
@@ -46,17 +36,17 @@ class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       if(!dsi.usrToMov.contains(i)) {
         return ArrayBuffer.fill(Nf)(0)
       }
-      val ratedSet: Set[Int] = dsi.usrToMov(i).keySet
-      val mRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (m(_))
+      val mSorted = ArrayBuffer.concat(dsi.usrToMov(i)) sortWith (_._1 < _._1)
+      val mRatings = mSorted map (x => m(x._1))
       val matMi = Matrix(mRatings.transpose)
       val Ai = matMi.dotTranspose(mRatings.size * lambda)
-      val Rij = Matrix(ArrayBuffer.concat(dsi.usrToMov(i)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
+      val Rij = mSorted map (_._2)
       val Vi = matMi * Rij
       val ui = Ai.CLsolve(Vi)
       ui
     }
     println("[ALS] Solving U")
-    u foreach (tup => u update (tup._1, solveUsr(tup._1)))
+    u transform ((key, value) => solveUsr(key))
   }
 
   def solveM = {
@@ -64,17 +54,17 @@ class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       if(!dsi.movToUsr.contains(j)) {
         return ArrayBuffer.fill(Nf)(0)
       }
-      val ratedSet: Set[Int] = dsi.movToUsr(j).keySet
-      val uRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (u(_))
+      val uSorted = ArrayBuffer.concat(dsi.movToUsr(j)) sortWith (_._1 < _._1)
+      val uRatings = uSorted map (x => u(x._1))
       val matUi = Matrix(uRatings.transpose)
       val Aj = matUi.dotTranspose(uRatings.size * lambda)
-      val Rij = Matrix(ArrayBuffer.concat(dsi.movToUsr(j)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
+      val Rij = uSorted map (_._2)
       val Vj = matUi * Rij
       val mj = Aj.CLsolve(Vj)
       mj
     }
     println("[ALS] Solving M")
-    m foreach (tup => m update (tup._1, solveMov(tup._1)))
+    m transform ((key, value) => solveMov(key))
   }
 
   def checkNorm: Float = {
@@ -84,12 +74,32 @@ class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
     }
      print("[ALS] Frobenius norm : ")
      var norm = 0f
-     for(i <- (1 to dsi.usrToMov.size)) {
-       dsi.usrToMov(i) foreach (tup => norm += delta(u(i),m(tup._1), tup._2))
+     for((ukey, movieMap) <- dsi.usrToMov ; (mkey, rating) <- movieMap) {
+       norm += delta(u(ukey), m(mkey), rating)
      }
      val rmse = sqrt(norm/dsi.nbrRatings).toFloat
      norm = sqrt(norm).toFloat
      println(norm + " (RMSE : " + rmse + ")" + "\n")
      norm
+  }
+}
+
+object ALSAlgorithm {
+  def apply(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float): ALSAlgorithm = {
+    val alg = new ALSAlgorithm(dataSetInit, Nf, lambda)
+    alg.init
+    alg
+  }
+  
+  def apply(dataSetInit: DataSetInitializer, Nf: Int): ALSAlgorithm = {
+    ALSAlgorithm(dataSetInit, Nf, LAMBDA)
+  }
+  
+  def apply(dataSetInit: DataSetInitializer, lambda: Float): ALSAlgorithm = {
+    ALSAlgorithm(dataSetInit, NF ,lambda)
+  }
+  
+  def apply(dataSetInit: DataSetInitializer): ALSAlgorithm = {
+    ALSAlgorithm(dataSetInit, NF, LAMBDA)
   }
 }

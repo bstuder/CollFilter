@@ -1,11 +1,12 @@
 import scala.collection.mutable.ArrayBuffer
-import scala.math._
+import scala.collection.parallel.mutable.ParArray
+import scala.math.sqrt
+import Matrix._
 
 /*
  * A Matrix representation mainly used to perform
- * matrix multiplication and LU factorisation
+ * matrix multiplication and LU/Cholesky factorisation
  */
-import Matrix._
 class Matrix(els: DenseMatrix) {
   val elements: DenseMatrix = els
   def nRows: Int = elements.size
@@ -13,33 +14,35 @@ class Matrix(els: DenseMatrix) {
 
   //Check for well formed matrix
   require(elements.forall(_.length == nCols))
-
-  private def addRows(a: DenseVector, b: DenseVector): DenseVector = 
-    (a zip b) map (x => x._1 + x._2)
-    
-  private def subRows(a: DenseVector, b: DenseVector): DenseVector = 
-    (a zip b) map (x => x._1 - x._2)
+  
+  def col(idx: Int): DenseVector = {
+    require(0 <= idx && idx < nCols)
+    elements map (_(idx))
+  }
 
   def +(other: Matrix): Matrix = {
     require((other.nRows == nRows) && (other.nCols == nCols))
-    new Matrix((elements, other.elements).zipped.map(addRows(_, _)))
+    def sum(i: Int, j: Int): Float = elements(i)(j) + other.elements(i)(j)
+    Matrix(ArrayBuffer.tabulate(nRows, nCols)(sum))
   }
 
   def -(other: Matrix): Matrix = {
     require((other.nRows == nRows) && (other.nCols == nCols))
-    new Matrix((elements, other.elements).zipped.map(subRows(_, _)))
+    def sub(i: Int, j: Int): Float = elements(i)(j) - other.elements(i)(j)
+    Matrix(ArrayBuffer.tabulate(nRows, nCols)(sub))
   }
 
-  def transpose: Matrix = new Matrix(elements.transpose)
+  def transpose: Matrix = Matrix(elements.transpose)
 
   def *(other: Matrix): Matrix = {
     require(nCols == other.nRows)
-    val t = other.transpose
-    new Matrix(
-      for (row <- elements) yield {
-        for (otherCol <- t.elements)
-          yield Matrix.dotVectors(row, otherCol)
-      })
+    def prod(i: Int, j: Int): Float = Matrix.dotVectors(elements(i), other.col(j))
+    Matrix(ArrayBuffer.tabulate(nRows, other.nCols)(prod))
+  }
+  
+  def *(vect: DenseVector): DenseVector = {
+    require(nCols == vect.size)
+    ArrayBuffer.tabulate(nRows)(i  => Matrix.dotVectors(elements(i), vect))
   }
 
   // optimisation for the case : this * this.transpose + weigthedIdentity(coef)
@@ -64,7 +67,7 @@ class Matrix(els: DenseMatrix) {
       i += 1
       j = 0
     }
-    val halfMat = new Matrix(halfArr)
+    val halfMat = Matrix(halfArr)
     val t2 = System.currentTimeMillis
     // complete the matrix ba summing the lower and upper half
     val cmat = halfMat + halfMat.transpose
@@ -74,11 +77,10 @@ class Matrix(els: DenseMatrix) {
   }
 
   // Solve the case : this * x = other with Cholesky decompositon
-  def CLsolve(other: Matrix): DenseVector = {
-    require(other.nRows == nCols && other.nCols == 1)
+  def CLsolve(vect: DenseVector): DenseVector = {
+    require(vect.size == nCols)
     val cl = this.cholesky 
-    val c0 = other.elements.flatten
-    val c1 = diagSolve(cl._1, c0, false)
+    val c1 = diagSolve(cl._1, vect, false)
     val c2 = diagSolve(cl._2, c1, true)
     c2
   }
@@ -145,7 +147,7 @@ class Matrix(els: DenseMatrix) {
       if(i > j)
         (elements(i)(j) - parSum(i, j)) / C(j)(j)
       else if(i == j)
-        sqrt(elements(i)(i) - parSum(i,i)).toFloat
+        sqrt(elements(i)(i) - parSum(i, i)).toFloat
       else 0
     
     // should proceed row by row
@@ -201,20 +203,28 @@ class Matrix(els: DenseMatrix) {
 object Matrix {
   type DenseMatrix = ArrayBuffer[ArrayBuffer[Float]]
   type DenseVector = ArrayBuffer[Float]
+  type ParDenseMatrix = ParArray[ParArray[Float]]
+  type ParDenceVector = ParArray[Float]
   
   var timing: List[Long] = List.fill(2)(0L)
   
-  def apply(elements: List[List[Float]]): Matrix = 
-    new Matrix(ArrayBuffer.concat(elements) map (line => ArrayBuffer.concat(line)))
+  def apply(elements: List[List[Float]]): Matrix = {
+    Matrix(ArrayBuffer.concat(elements) map (line => ArrayBuffer.concat(line)))
+  }
   
   def apply(dmat: DenseMatrix): Matrix = new Matrix(dmat)
+  
+  def apply(pmat: ParDenseMatrix): Matrix = {
+    val dmat = new ArrayBuffer() ++ pmat.map(new ArrayBuffer() ++ _)
+    Matrix(dmat)
+  }
   
   // the identity matrix
   def identity(size: Int): Matrix = weightIdentity(size)(1)
 
   // the weighted identity matrix (the diagonal contains the coef value)
   def weightIdentity(size: Int)(coef: Float): Matrix = {
-    Matrix(ArrayBuffer.tabulate(size, size)((i, j) => if(i == j) coef else 0))
+    Matrix(ArrayBuffer.tabulate(size, size)((i, j) => if(i != j) 0 else coef))
   }
 
   def dotVectors(a: List[Float], b: List[Float]): Float = {
@@ -225,7 +235,7 @@ object Matrix {
   def dotVectors(a: DenseVector, b: DenseVector): Float = {
     var buf = 0f
     var i = 0
-    while(i < a.size) {
+    while(i < a.length) {
       buf += a(i) * b(i)
       i += 1
     }

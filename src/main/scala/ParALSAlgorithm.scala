@@ -1,8 +1,6 @@
-import scala.collection.parallel.mutable.ParHashMap
+import scala.collection.parallel.mutable.ParCtrie
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.HashMap
-import scala.collection.Set
-import scala.math._
+import scala.math.sqrt
 import Constants._
 import Matrix._
 
@@ -10,10 +8,6 @@ import Matrix._
  * The parallel implementation of ALS algorithm using parallel Hash map
  */
 class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
-  def this(dataSetInit: DataSetInitializer) = this(dataSetInit,NF,LAMBDA)
-  def this(dataSetInit: DataSetInitializer, Nf: Int) = this(dataSetInit,Nf,LAMBDA)
-  def this(dataSetInit: DataSetInitializer, lambda: Float) = this(dataSetInit,NF,lambda)
-
   //------------------------------------------------------
   var timer: List[Long] = List.fill(6)(0L)
   def tick = System.currentTimeMillis
@@ -31,13 +25,12 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   //------------------------------------------------------
 
   val dsi: DataSetInitializer = dataSetInit
-  var m: ParHashMap[Int, DenseVector] = new ParHashMap()
-  var u: ParHashMap[Int, DenseVector] = new ParHashMap()
+  val m: ParCtrie[Int, DenseVector] = new ParCtrie()
+  val u: ParCtrie[Int, DenseVector] = new ParCtrie()
 
   def init = {
-    dsi.init
     m ++= dsi.setUpM(Nf)
-    for(i <- 1 to dsi.usrToMov.size) {
+    for(i <- dsi.usrToMov.keySet) {
       u += ((i, ArrayBuffer.empty))
     }
   }
@@ -51,9 +44,6 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
   }
 
   def step = {
-    if(m.size == 0) {
-      init
-    }
     solveU
     solveM
     // Timers
@@ -76,15 +66,15 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       if(!dsi.usrToMov.contains(i)) {
         return ArrayBuffer.fill(Nf)(0)
       }
-      val ratedSet: Set[Int] = dsi.usrToMov(i).keySet
+      val mSorted = ArrayBuffer.concat(dsi.usrToMov(i)) sortWith (_._1 < _._1)
       val t1 = tick
-      val mRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (m(_))
+      val mRatings = mSorted map (x => m(x._1))
       val t2 = tick
       val matMi = Matrix(mRatings.transpose)
       val t3 = tick
       val Ai = matMi.dotTranspose(mRatings.size * lambda)
       val t4 = tick
-      val Rij = Matrix(ArrayBuffer.concat(dsi.usrToMov(i)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
+      val Rij = mSorted map (_._2)
       val t5 = tick
       val Vi = matMi * Rij
       val t6 = tick
@@ -103,15 +93,15 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       if(!dsi.movToUsr.contains(j)) {
         return ArrayBuffer.fill(Nf)(0)
       }
-      val ratedSet: Set[Int] = dsi.movToUsr(j).keySet
+      val uSorted = ArrayBuffer.concat(dsi.movToUsr(j)) sortWith (_._1 < _._1)
       val t1 = tick
-      val uRatings: DenseMatrix = ArrayBuffer.concat(ratedSet).sortWith(_ < _) map (u(_))
+      val uRatings = uSorted map (x => u(x._1))
       val t2 = tick
       val matUi = Matrix(uRatings.transpose)
       val t3 = tick
       val Aj = matUi.dotTranspose(uRatings.size * lambda)
       val t4 = tick
-      val Rij = Matrix(ArrayBuffer.concat(dsi.movToUsr(j)).sortWith(_._1 < _._1).map(x => ArrayBuffer(x._2)))
+      val Rij = uSorted map (_._2)
       val t5 = tick
       val Vj = matUi * Rij
       val t6 = tick
@@ -132,13 +122,32 @@ class ParALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
     }
      print("[ALS] Frobenius norm : ")
      var norm = 0f
-     for(i <- (1 to dsi.usrToMov.size)) {
-       dsi.usrToMov(i) foreach (tup => norm += delta(u(i),m(tup._1), tup._2))
+     for((ukey, movieMap) <- dsi.usrToMov ; (mkey, rating) <- movieMap) {
+       norm += delta(u(ukey), m(mkey), rating)
      }
-     val rmse = sqrt(norm/dsi.nbrRatings).toFloat
+     val rmse = sqrt(norm / dsi.nbrRatings).toFloat
      norm = sqrt(norm).toFloat
      println(norm + " (RMSE : " + rmse + ")" + "\n")
      norm
   }
+}
 
+object ParALSAlgorithm {
+  def apply(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float): ParALSAlgorithm = {
+    val alg = new ParALSAlgorithm(dataSetInit, Nf, lambda)
+    alg.init
+    alg
+  }
+  
+  def apply(dataSetInit: DataSetInitializer, Nf: Int): ParALSAlgorithm = {
+    ParALSAlgorithm(dataSetInit, Nf, LAMBDA)
+  }
+  
+  def apply(dataSetInit: DataSetInitializer, lambda: Float): ParALSAlgorithm = {
+    ParALSAlgorithm(dataSetInit, NF ,lambda)
+  }
+  
+  def apply(dataSetInit: DataSetInitializer): ParALSAlgorithm = {
+    ParALSAlgorithm(dataSetInit, NF, LAMBDA)
+  }
 }
