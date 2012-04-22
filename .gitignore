@@ -1,4 +1,6 @@
 target/
 lib_managed/
 src_managed/
-project/
+project/boot/
+project/ivy2/
+project/target/
