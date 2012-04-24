@@ -38,18 +38,17 @@ object Bench extends TicToc {
     
     def bench(fact: Int) {
       benchSerial(fact)
-      benchMenthor(fact)
       benchPar(fact)
+      benchMenthor(fact)
       printTimesLog
       println("\n")
     }
     
-    bench(10)
-    bench(30)
     bench(50)
     bench(100)
-    bench(200)
-    //bench(300)
-    //bench(500)
+    bench(300)
+    bench(500)
+    bench(700)
+    bench(1000)
   }
 }

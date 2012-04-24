@@ -33,9 +33,7 @@ class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
 
   def solveU = {
     def solveUsr(i: Int): DenseVector = {
-      if(!dsi.usrToMov.contains(i)) {
-        return ArrayBuffer.fill(Nf)(0)
-      }
+      require(dsi.usrToMov.contains(i))
       val mSorted = ArrayBuffer.concat(dsi.usrToMov(i)) sortWith (_._1 < _._1)
       val mRatings = mSorted map (x => m(x._1))
       val matMi = Matrix(mRatings.transpose)
@@ -51,9 +49,7 @@ class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
 
   def solveM = {
     def solveMov(j: Int): DenseVector = {
-      if(!dsi.movToUsr.contains(j)) {
-        return ArrayBuffer.fill(Nf)(0)
-      }
+      require(dsi.movToUsr.contains(j))
       val uSorted = ArrayBuffer.concat(dsi.movToUsr(j)) sortWith (_._1 < _._1)
       val uRatings = uSorted map (x => u(x._1))
       val matUi = Matrix(uRatings.transpose)
@@ -72,15 +68,13 @@ class ALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float) {
       val delt = Matrix.dotVectors(user, movie) - expectedR
       delt * delt
     }
-     print("[ALS] Frobenius norm : ")
      var norm = 0f
      for((ukey, movieMap) <- dsi.usrToMov ; (mkey, rating) <- movieMap) {
        norm += delta(u(ukey), m(mkey), rating)
      }
-     val rmse = sqrt(norm/dsi.nbrRatings).toFloat
-     norm = sqrt(norm).toFloat
-     println(norm + " (RMSE : " + rmse + ")" + "\n")
-     norm
+     val rmse = sqrt(norm / dsi.nbrRatings).toFloat
+     println("[ALS] RMSE : " + rmse + "\n")
+     rmse
   }
 }
 

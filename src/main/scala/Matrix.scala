@@ -54,7 +54,6 @@ class Matrix(els: DenseMatrix) {
       else 0f
     }
     
-    val t1 = System.currentTimeMillis
     // construct the lower half matrix
     val halfArr = ArrayBuffer.fill(nRows, nRows)(0f)
     var i = 0
@@ -68,12 +67,8 @@ class Matrix(els: DenseMatrix) {
       j = 0
     }
     val halfMat = Matrix(halfArr)
-    val t2 = System.currentTimeMillis
-    // complete the matrix ba summing the lower and upper half
-    val cmat = halfMat + halfMat.transpose
-    val t3 = System.currentTimeMillis
-    Matrix.timing = (Matrix.timing zip ((t2-t1)::(t3-t2)::Nil)).map(x => x._1 + x._2)
-    cmat
+    // complete the matrix by summing the lower and upper half
+    halfMat + halfMat.transpose
   }
 
   // Solve the case : this * x = other with Cholesky decompositon
@@ -85,44 +80,6 @@ class Matrix(els: DenseMatrix) {
     c2
   }
 
-  /* 
-   * A faster version of the Doolittle LU decompostion
-   * May not be safe for side cases
-   */
-  def fastLU: (DenseMatrix, DenseMatrix) = {
-    require(nCols == nRows)
-
-    val L: DenseMatrix = ArrayBuffer.fill(nRows, nRows)(0f)
-    val U: DenseMatrix = ArrayBuffer.fill(nRows, nRows)(0f)
-
-    def parSum(i: Int, j: Int, n: Int): Float = {
-      var sum = 0f
-      if(n > 0) {
-        for(m <- (0 until n))
-          sum += L(i)(m) * U(m)(j)
-      }
-      sum
-    }
-
-    def slvL(i: Int, j: Int): Float =
-      if(i < j) 0 
-      else if(i == j) 1 
-      else (elements(i)(j) - parSum(i,j,j)) / U(j)(j)
-
-    def slvU(i: Int, j: Int): Float =
-      if(i > j) 0 
-      else elements(i)(j) - parSum(i,j,i)
-
-    for(i <- (0 until nRows)) {
-      for(j <- (0 until nRows)) {
-        L(i).update(j, slvL(i, j))
-        U(i).update(j, slvU(i, j))
-      }
-    }
-
-    (L, U)
-  }
-  
   /*
    * Cholesky decomposition (LU equivalent for Hermitian matrix)
    */
@@ -203,10 +160,6 @@ class Matrix(els: DenseMatrix) {
 object Matrix {
   type DenseMatrix = ArrayBuffer[ArrayBuffer[Float]]
   type DenseVector = ArrayBuffer[Float]
-  type ParDenseMatrix = ParArray[ParArray[Float]]
-  type ParDenceVector = ParArray[Float]
-  
-  var timing: List[Long] = List.fill(2)(0L)
   
   def apply(elements: List[List[Float]]): Matrix = {
     Matrix(ArrayBuffer.concat(elements) map (line => ArrayBuffer.concat(line)))

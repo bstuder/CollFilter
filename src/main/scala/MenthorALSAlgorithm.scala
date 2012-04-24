@@ -6,8 +6,7 @@ import scala.math.sqrt
 import Constants._
 
 /* User Vertex */
-case class usrVertex(override val label: String, uId: Int, uRatings: Ctrie[Int, Float]) extends Vertex[DenseVector](label, ArrayBuffer.empty) {
-  val id = uId
+case class usrVertex(uId: Int, uRatings: Ctrie[Int, Float]) extends Vertex[DenseVector]("User Vertex", ArrayBuffer.empty) {
   val ratings = uRatings
   
   def update(superstep: Int, incoming: List[Message[DenseVector]]): Substep[DenseVector] = {
@@ -15,7 +14,7 @@ case class usrVertex(override val label: String, uId: Int, uRatings: Ctrie[Int, 
       Nil
     } then {
       val msgTup = for(msg <- incoming) yield msg.source match {
-        case movVertex(_ , mId, _) => (mId, ratings(mId), msg.value)
+        case movVertex(mId, _) => (mId, ratings(mId), msg.value)
       }
       val mSorted = ArrayBuffer.concat(msgTup) sortWith (_._1 < _._1)
       val mRatings = mSorted map (_._3)
@@ -23,8 +22,8 @@ case class usrVertex(override val label: String, uId: Int, uRatings: Ctrie[Int, 
       val Ai = matMi.dotTranspose(mRatings.size * LAMBDA)
       val Rij = mSorted map (_._2)
       val Vi = matMi * Rij
-      val ui = Ai.CLsolve(Vi)
-      value = ui
+      value = Ai.CLsolve(Vi)
+      
       for (neighbor <- neighbors) yield Message(this, neighbor, value)
     }
   }
@@ -32,7 +31,7 @@ case class usrVertex(override val label: String, uId: Int, uRatings: Ctrie[Int, 
   def sumDelta(): Float = {
     var sum = 0f;
     for (neighbor <- neighbors) neighbor match {
-      case movVertex(_, mId, _) => {
+      case movVertex(mId, _) => {
         val delta = Matrix.dotVectors(neighbor.value, value) - ratings(mId)
         sum += delta * delta
       }
@@ -42,15 +41,14 @@ case class usrVertex(override val label: String, uId: Int, uRatings: Ctrie[Int, 
 }
 
 /* Movie Vertex */
-case class movVertex(override val label: String, mId: Int, mRatings: Ctrie[Int, Float]) extends Vertex[DenseVector](label, ArrayBuffer.empty) {
-  val id = mId
+case class movVertex(mId: Int, mRatings: Ctrie[Int, Float]) extends Vertex[DenseVector]("Movie Vertex", ArrayBuffer.empty) {
   val ratings = mRatings
   
   def update(superstep: Int, incoming: List[Message[DenseVector]]): Substep[DenseVector] = {
     {
       if (superstep > 0) {
         val msgTup = for (msg <- incoming) yield msg.source match {
-          case usrVertex(_ , uId, _) => (uId, ratings(uId), msg.value)
+          case usrVertex(uId, _) => (uId, ratings(uId), msg.value)
         }
         val uSorted = ArrayBuffer.concat(msgTup) sortWith (_._1 < _._1)
         val uRatings = uSorted map (_._3)
@@ -58,8 +56,7 @@ case class movVertex(override val label: String, mId: Int, mRatings: Ctrie[Int, 
         val Aj = matUi.dotTranspose(uRatings.size * LAMBDA)
         val Rij = uSorted map (_._2)
         val Vj = matUi * Rij
-        val mj = Aj.CLsolve(Vj)
-        value = mj
+        value = Aj.CLsolve(Vj)
       }
       for (neighbor <- neighbors) yield Message(this, neighbor, value)
     } then {
@@ -73,6 +70,7 @@ class MenthorALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Floa
   val ga = actorOf({ g = new Graph[DenseVector]; g })
   var dsi: DataSetInitializer = dataSetInit
   var initialM: Ctrie[Int, DenseVector] = new Ctrie()
+  var nbWorker: Int = 20
   
   def init {
     initialM ++= dsi.setUpM(Nf)
@@ -84,14 +82,14 @@ class MenthorALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Floa
     
     // adding user vertices
     for((uId, hashmap) <- dsi.usrToMov) {
-      val vertex = new usrVertex("u" + uId, uId, hashmap)
+      val vertex = new usrVertex(uId, hashmap)
       vertexMap += ((uId, vertex))
       g.addVertex(vertex)
     }
     
     // adding movies vertices and connecting them
     for((mId, hashmap) <- dsi.movToUsr) {
-      val vertex = new movVertex("m" + mId, mId, hashmap)
+      val vertex = new movVertex(mId, hashmap)
       vertex.value = initialM(mId)
       for((uId, _) <- hashmap) {
         val userVertex = vertexMap(uId)
@@ -106,25 +104,21 @@ class MenthorALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Floa
   def setMode() = {
     //g.setOpMode(SingleWorkerMode)
     //g.setOpMode(MultiWorkerMode)
-    g.setOpMode(FixedWorkerMode(20))
+    g.setOpMode(FixedWorkerMode(nbWorker))
     //g.setOpMode(IAmLegionMode)
   }
   
   def checkNorm() = {
-    println("[Menthor] Collecting values")
-    g.synchronized {
-      var norm = 0f
-      for (v <- g.vertices) v match {
-        case vertex: usrVertex => norm += vertex.sumDelta()
-        case _ =>
-      }
-      val rmse = sqrt(norm / dsi.nbrRatings).toFloat
-      norm = sqrt(norm).toFloat
-      println("\nFrobenius norm : " + norm + " (RMSE : " + rmse + ")" + "\n")
+    var norm = 0f
+    for (v <- g.vertices) v match {
+      case vertex: usrVertex => g.synchronized{norm += vertex.sumDelta()}
+      case _ =>
     }
+    val rmse = sqrt(norm / dsi.nbrRatings).toFloat
+    println("[Menthor] RMSE : " + rmse + "\n")
   }
     
-  def stepN(iterations: Int) {
+  def stepN(iterations: Int) = {
     build()
     setMode()
     ga.start()
@@ -136,7 +130,9 @@ class MenthorALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Floa
 
 object MenthorALSAlgorithm {    
   def main(arg: Array[String]) {
-    this(DataSetInitializer(DataSetReader(path1m)), arg(1).toInt).stepN(arg(0).toInt)
+    val alg = this(DataSetInitializer(DataSetReader(path1m)), arg(1).toInt)
+    if(arg.length > 2) alg.nbWorker = arg(2).toInt
+    alg.stepN(arg(0).toInt)
   }
   
   def apply(dataSetInit: DataSetInitializer, Nf: Int, lambda: Float): MenthorALSAlgorithm = {

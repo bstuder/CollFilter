@@ -41,9 +41,7 @@ class LaALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Double) {
 
   def solveU = {
     def solveUsr(i: Int): List[Double] = {
-      if(!dsi.usrToMov.contains(i)) {
-        return List.fill(Nf)(0)
-      }
+      require(dsi.usrToMov.contains(i))
       val mSorted = ArrayBuffer.concat(dsi.usrToMov(i)) sortWith (_._1 < _._1)
       val mRatings = new DenseMatrix[Double](mSorted.size, Nf, (mSorted flatMap (x => m(x._1))).toArray)
       val Ai = (mRatings.t * mRatings) + (DenseMatrix.eye[Double](Nf) *= (mSorted.size * lambda))
@@ -58,9 +56,7 @@ class LaALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Double) {
 
   def solveM = {
     def solveMov(j: Int): List[Double] = {
-      if(!dsi.movToUsr.contains(j)) {
-        return List.fill(Nf)(0)
-      }
+      require(dsi.movToUsr.contains(j))
       val uSorted = ArrayBuffer.concat(dsi.movToUsr(j)) sortWith (_._1 < _._1)
       val uRatings = new DenseMatrix[Double](uSorted.size, Nf, (uSorted flatMap (x => u(x._1))).toArray)
       val Aj = (uRatings.t * uRatings) + (DenseMatrix.eye[Double](Nf) *= (uSorted.size * lambda))
@@ -78,15 +74,13 @@ class LaALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Double) {
       val delt = (user, movie).zipped.map(_ * _).reduce(_ + _) - expectedR
       delt * delt
     }
-     print("[ALS] Frobenius norm : ")
      var norm = 0d
      for((ukey, movieMap) <- dsi.usrToMov ; (mkey, rating) <- movieMap) {
        norm += delta(u(ukey), m(mkey), rating)
      }
-     val rmse = sqrt(norm/dsi.nbrRatings)
-     norm = sqrt(norm)
-     println(norm + " (RMSE : " + rmse + ")" + "\n")
-     norm
+     val rmse = sqrt(norm / dsi.nbrRatings)
+     println("[ALS] RMSE : " + rmse + "\n")
+     rmse
   }
 }
 
