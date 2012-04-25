@@ -19,17 +19,17 @@ trait TicToc {
   var tics: Stack[Long] = Stack()
   var times: LinkedList[(String, Long)] = LinkedList()
 
-/**
-* Starts a time measurement.
-*/
+  /**
+  * Starts a time measurement.
+  */
   def tic = {
     tics = tics.push(System.currentTimeMillis)
   }
 
-/**
-* Stops the last started time measurement.
-* @param descr a description of the last measurement period
-*/
+  /**
+  * Stops the last started time measurement.
+  * @param descr a description of the last measurement period
+  */
   def toc(descr: String) {
     var t = System.currentTimeMillis - tics.pop
     if (null != descr && !"".equals(descr))
@@ -40,13 +40,13 @@ trait TicToc {
     }
   }
 
-/**
-* Write the logged times to a file. There is some formatting sugar contained
-* that checks if a file with this name already exists. If yes, the run times
-* are added at the bottom of the existing file (this is useful if you repeat
-* the same measurement multiple times), else the file is created.
-* @param path The path of the file to write the times log.
-*/
+  /**
+  * Write the logged times to a file. There is some formatting sugar contained
+  * that checks if a file with this name already exists. If yes, the run times
+  * are added at the bottom of the existing file (this is useful if you repeat
+  * the same measurement multiple times), else the file is created.
+  * @param path The path of the file to write the times log.
+  */
   def writeTimesLog(path: String) {
     var linesToPrint = outLines
     try {
@@ -63,27 +63,42 @@ trait TicToc {
     }
     // Write the timings and or timing information.
     val fw = new FileWriter(path, true);
-    linesToPrint.foreach { l => fw.write(l + "\n"); }
+    linesToPrint foreach (l => fw.write(l + "\n"))
     fw.close()
   }
 
-/**
-* Print the logged times.
-*/
+  /**
+  * Print the logged times.
+  */
   def printTimesLog = {
     outLines foreach println
   }
 
-/**
-* String output of the current times and their respective descriptions.
-* @return
-*/
+  /**
+  * String output of the current times and their respective descriptions.
+  * @return
+  */
   def outLines(): List[String] = {
     var list = List[String]()
     list ::= ("Timings of " + this.getClass().toString())
     list ::= "description:" + times.map(x => "\t" + x._1).reduce(_ + _)
-    list ::= "times(ms):" + times.map(x => "\t" + x._2).reduce(_ + _)
+    list ::= "times:" + times.map(x => "\t" + hRead(x._2)).reduce(_ + _)
     list.reverse
+  }
+  
+  /**
+   * Convert a Long into a human readable time 
+   * hours / minutes / seconds / milliseconds
+   */
+  def hRead(l: Long): String = {
+    val sec = 1000
+    val min = 60 * sec
+    val hour = 60 * min
+    
+    if(l < sec) l + "ms"
+    else if(l < min) l / sec + "s" + hRead(l % sec)
+    else if(l < hour) l / min + "m" + hRead(l % min)
+    else l / hour + "h" + hRead(l % hour)
   }
 
 }

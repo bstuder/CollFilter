@@ -167,11 +167,6 @@ object Matrix {
   
   def apply(dmat: DenseMatrix): Matrix = new Matrix(dmat)
   
-  def apply(pmat: ParDenseMatrix): Matrix = {
-    val dmat = new ArrayBuffer() ++ pmat.map(new ArrayBuffer() ++ _)
-    Matrix(dmat)
-  }
-  
   // the identity matrix
   def identity(size: Int): Matrix = weightIdentity(size)(1)
 
