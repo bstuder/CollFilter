@@ -36,16 +36,23 @@ object Bench extends TicToc {
       toc("Mth" + fact)
     }
     
-    def bench(fact: Int) {
+    // benchmark all the algorithms
+    def benchAll(fact: Int) {
       benchSerial(fact)
+      bench(fact)
+    }
+    
+    // benchmark only the parallel version
+    def bench(fact: Int) {
       benchPar(fact)
       benchMenthor(fact)
       printTimesLog
       println("\n")
     }
     
-    bench(50)
-    bench(100)
+    benchAll(50)
+    benchAll(100)
+    benchAll(200)
     bench(300)
     bench(500)
     bench(700)

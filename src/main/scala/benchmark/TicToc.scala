@@ -82,23 +82,7 @@ trait TicToc {
     var list = List[String]()
     list ::= ("Timings of " + this.getClass().toString())
     list ::= "description:" + times.map(x => "\t" + x._1).reduce(_ + _)
-    list ::= "times:" + times.map(x => "\t" + hRead(x._2)).reduce(_ + _)
+    list ::= "times(sec):" + times.map(x => "\t" + x._2/1000).reduce(_ + _)
     list.reverse
   }
-  
-  /**
-   * Convert a Long into a human readable time 
-   * hours / minutes / seconds / milliseconds
-   */
-  def hRead(l: Long): String = {
-    val sec = 1000
-    val min = 60 * sec
-    val hour = 60 * min
-    
-    if(l < sec) l + "ms"
-    else if(l < min) l / sec + "s" + hRead(l % sec)
-    else if(l < hour) l / min + "m" + hRead(l % min)
-    else l / hour + "h" + hRead(l % hour)
-  }
-
 }
