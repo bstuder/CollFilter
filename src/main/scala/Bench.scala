@@ -47,6 +47,7 @@ object Bench extends TicToc {
       benchPar(fact)
       benchMenthor(fact)
       printTimesLog
+      writeTimesLog("benchResult.txt")
       println("\n")
     }
     

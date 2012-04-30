@@ -13,4 +13,7 @@ object Constants {
 
   val incr = 50
   val STEPS = 3
+  
+  //Menthor
+  val NBRSUBSTEPS = 5
 }

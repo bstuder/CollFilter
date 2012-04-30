@@ -28,7 +28,9 @@ class Worker[Data](parent: ActorRef, partition: GenSeq[Vertex[Data]], global: Gr
     // remove all application-level messages from mailbox
     while (!queue.isEmpty) {
       val msg = queue.dequeue()
-      if (msg.step == step)
+      if(msg == null) //todo : investigate how null message can arrive here
+        Unit 
+      else if (msg.step == step)
         incoming(msg.dest) = msg :: incoming(msg.dest)
       else
         later += msg
