@@ -24,7 +24,7 @@ case class usrVertex(uId: Int, uRatings: Ctrie[Int, Float]) extends Vertex[Data]
       val Rij = mSorted map (_._2)
       val Vi = matMi * Rij
       val ui = Ai.CLsolve(Vi)
-      value = (ui, sumDelta(ui))
+      value = (ui, 0f)
       
       for (neighbor <- neighbors) yield Message(this, neighbor, value)
     } then {
@@ -32,17 +32,6 @@ case class usrVertex(uId: Int, uRatings: Ctrie[Int, Float]) extends Vertex[Data]
     } crunch((d1: Data, d2: Data) => (ArrayBuffer.empty, d1._2 + d2._2)) then {
       Nil
     }
-  }
-  
-  def sumDelta(ui: DenseVector): Float = {
-    var sum = 0f
-    for (neighbor <- neighbors) neighbor match {
-      case movVertex(mId, _) => {
-        val delta = Matrix.dotVectors(neighbor.value._1, ui) - ratings(mId)
-        sum += delta * delta
-      }
-    }
-    sum
   }
 }
 
@@ -66,11 +55,22 @@ case class movVertex(mId: Int, mRatings: Ctrie[Int, Float]) extends Vertex[Data]
       val Rij = uSorted map (_._2)
       val Vj = matUi * Rij
       val mj = Aj.CLsolve(Vj)
-      value = (mj, 0f)
+      value = (mj, sumDelta(mj))
       Nil
     } crunch((d1: Data, d2: Data) => (ArrayBuffer.empty, d1._2 + d2._2)) then {
       Nil
     }
+  }
+  
+  def sumDelta(mj: DenseVector): Float = {
+    var sum = 0f
+    for (neighbor <- neighbors) neighbor match {
+      case usrVertex(uId, _) => {
+        val delta = Matrix.dotVectors(neighbor.value._1, mj) - ratings(uId)
+        sum += delta * delta
+      }
+    }
+    sum
   }
 }
 
@@ -107,7 +107,7 @@ class MenthorALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Floa
   val ga = actorOf({ g = new Graph[Data]; g })
   var dsi: DataSetInitializer = dataSetInit
   var initialM: Ctrie[Int, DenseVector] = new Ctrie()
-  var nbWorker: Int = 20
+  var nbWorker: Int = NBRWORKERS
   
   def init {
     initialM ++= dsi.setUpM(Nf)

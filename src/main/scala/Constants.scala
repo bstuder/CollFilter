@@ -16,4 +16,5 @@ object Constants {
   
   //Menthor
   val NBRSUBSTEPS = 5
+  val NBRWORKERS = 20
 }
