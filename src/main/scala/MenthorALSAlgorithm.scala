@@ -142,8 +142,8 @@ class MenthorALSAlgorithm(dataSetInit: DataSetInitializer, Nf: Int, lambda: Floa
   
   def setMode() = {
     //g.setOpMode(SingleWorkerMode)
-    //g.setOpMode(MultiWorkerMode)
-    g.setOpMode(FixedWorkerMode(nbWorker))
+    g.setOpMode(MultiWorkerMode)
+    //g.setOpMode(FixedWorkerMode(nbWorker))
     //g.setOpMode(IAmLegionMode)
   }
     

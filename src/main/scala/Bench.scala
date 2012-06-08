@@ -54,8 +54,8 @@ object Bench extends TicToc {
     benchAll(50)
     benchAll(100)
     benchAll(200)
-    bench(300)
-    bench(500)
+    benchAll(300)
+    benchAll(500)
     bench(700)
     bench(1000)
   }
